@@ -1,17 +1,22 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { clearLoginSession, getLoginSession } from '@/services/auth'
+import { clearAuthState, getCurrentUser, isAdminUser } from '@/services/auth'
 
 const router = useRouter()
-const email = computed(() => getLoginSession())
+const user = computed(() => getCurrentUser())
+const canEnterAdmin = computed(() => isAdminUser())
 
 function goHome() {
   router.push('/')
 }
 
+function goAdmin() {
+  router.push('/admin/users')
+}
+
 function handleLogout() {
-  clearLoginSession()
+  clearAuthState()
   router.push('/')
 }
 </script>
@@ -24,21 +29,41 @@ function handleLogout() {
       </template>
       <template #header>
         <div class="welcome-header">
-          <px-text tag="h1" size="18">Face Login Complete</px-text>
-          <px-text size="12">像素门禁已经放行</px-text>
+          <px-text tag="h1" size="18">登录成功</px-text>
+          <px-text size="12">当前会话已绑定 token</px-text>
         </div>
       </template>
 
       <div class="welcome-content">
-        <px-text size="13">当前登录邮箱</px-text>
-        <div class="welcome-email">{{ email || '未找到本次会话信息' }}</div>
-        <px-text size="12">后端当前未返回 token，本页仅展示本次登录结果。</px-text>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">用户名</span>
+            <span class="info-value">{{ user?.username || '未找到' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">邮箱</span>
+            <span class="info-value">{{ user?.email || '未找到' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">登录方式</span>
+            <span class="info-value">{{ user?.loginType || 'UNKNOWN' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">角色</span>
+            <span class="info-value">{{ user?.roles?.join(' / ') || '未分配' }}</span>
+          </div>
+        </div>
+
+        <div class="session-tip">
+          管理员可以进入用户管理页查看分页列表、搜索用户并切换账户状态。
+        </div>
       </div>
 
       <template #footer>
         <div class="welcome-actions">
           <px-button type="primary" @click="goHome">返回首页</px-button>
-          <px-button plain @click="handleLogout">清除会话</px-button>
+          <px-button v-if="canEnterAdmin" plain @click="goAdmin">进入后台</px-button>
+          <px-button plain @click="handleLogout">退出登录</px-button>
         </div>
       </template>
     </px-card>
@@ -57,7 +82,7 @@ function handleLogout() {
 }
 
 .welcome-card {
-  width: min(100%, 520px);
+  width: min(100%, 620px);
 }
 
 .welcome-header {
@@ -69,21 +94,54 @@ function handleLogout() {
 .welcome-content {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   padding: 8px 0;
 }
 
-.welcome-email {
-  padding: 16px;
-  border: 2px dashed #385b66;
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 91, 102, 0.12);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.info-label {
+  font-size: 12px;
+  color: #6b7f87;
+}
+
+.info-value {
   color: #213547;
+  font-weight: 700;
   word-break: break-all;
+}
+
+.session-tip {
+  padding: 16px;
+  border-left: 4px solid #5d3ef0;
+  background: rgba(93, 62, 240, 0.08);
+  color: #385b66;
+  line-height: 1.7;
 }
 
 .welcome-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

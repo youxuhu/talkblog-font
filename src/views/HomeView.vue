@@ -168,7 +168,7 @@ function resetSnapshot() {
 }
 
 function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email ?? '').trim())
 }
 
 function validateCurrentForm() {
@@ -372,7 +372,13 @@ function fillSamplePassword() {
           <template v-else>
             <label class="field-block">
               <span class="field-label">邮箱</span>
-              <px-input v-model="faceLoginForm.email" placeholder="user@example.com" clearable />
+              <px-input
+                v-if="currentMode === 'face-register'"
+                v-model="registerForm.email"
+                placeholder="user@example.com"
+                clearable
+              />
+              <px-input v-else v-model="faceLoginForm.email" placeholder="user@example.com" clearable />
             </label>
 
             <template v-if="currentMode === 'face-register'">

@@ -3,7 +3,9 @@ import { ElMessage } from 'element-plus'
 import { isAdminUser, isAuthenticated } from '@/services/auth'
 import HomeView from '../views/HomeView.vue'
 import WelcomeView from '../views/WelcomeView.vue'
+import ChatView from '../views/ChatView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import AdminChatView from '../views/AdminChatView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,9 +24,26 @@ const router = createRouter({
       },
     },
     {
+      path: '/chat',
+      name: 'chat',
+      component: ChatView,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsersView,
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+      },
+    },
+    {
+      path: '/admin/chat',
+      name: 'admin-chat',
+      component: AdminChatView,
       meta: {
         requiresAuth: true,
         requiresAdmin: true,

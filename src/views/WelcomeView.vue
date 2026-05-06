@@ -11,6 +11,10 @@ function goHome() {
   router.push('/')
 }
 
+function goBlog() {
+  router.push('/blogs')
+}
+
 function goAdmin() {
   router.push('/admin/users')
 }
@@ -62,6 +66,7 @@ function handleLogout() {
       <template #footer>
         <div class="welcome-actions">
           <px-button type="primary" @click="goHome">返回首页</px-button>
+          <px-button plain @click="goBlog">博客管理</px-button>
           <px-button v-if="canEnterAdmin" plain @click="goAdmin">进入后台</px-button>
           <px-button plain @click="handleLogout">退出登录</px-button>
         </div>

@@ -15,6 +15,14 @@ function goAdmin() {
   router.push('/admin/users')
 }
 
+function goComments() {
+  router.push('/blog/1/comments')
+}
+
+function goAdminComments() {
+  router.push('/admin/comments')
+}
+
 function handleLogout() {
   clearAuthState()
   router.push('/')
@@ -57,12 +65,23 @@ function handleLogout() {
         <div class="session-tip">
           管理员可以进入用户管理页查看分页列表、搜索用户并切换账户状态。
         </div>
+
+        <div class="module-grid">
+          <div class="module-card" @click="goComments">
+            <span class="module-icon">💬</span>
+            <span class="module-label">博客评论</span>
+          </div>
+          <div v-if="canEnterAdmin" class="module-card" @click="goAdminComments">
+            <span class="module-icon">📋</span>
+            <span class="module-label">评论管理</span>
+          </div>
+        </div>
       </div>
 
       <template #footer>
         <div class="welcome-actions">
           <px-button type="primary" @click="goHome">返回首页</px-button>
-          <px-button v-if="canEnterAdmin" plain @click="goAdmin">进入后台</px-button>
+          <px-button v-if="canEnterAdmin" plain @click="goAdmin">用户管理</px-button>
           <px-button plain @click="handleLogout">退出登录</px-button>
         </div>
       </template>
@@ -139,8 +158,46 @@ function handleLogout() {
   gap: 12px;
 }
 
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.module-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(56, 91, 102, 0.12);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: rgba(93, 62, 240, 0.3);
+}
+
+.module-icon {
+  font-size: 24px;
+}
+
+.module-label {
+  color: #213547;
+  font-weight: 600;
+  font-size: 14px;
+}
+
 @media (max-width: 640px) {
   .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-grid {
     grid-template-columns: 1fr;
   }
 }

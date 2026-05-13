@@ -4,7 +4,10 @@ import { isAdminUser, isAuthenticated } from '@/services/auth'
 import HomeView from '../views/HomeView.vue'
 import WelcomeView from '../views/WelcomeView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
-import BlogCommentView from '../views/BlogCommentView.vue'
+import BlogListView from '../views/BlogListView.vue'
+import BlogDetailView from '../views/BlogDetailView.vue'
+import BlogEditorView from '../views/BlogEditorView.vue'
+
 import AdminCommentsView from '../views/AdminCommentsView.vue'
 import AdminCommentStatsView from '../views/AdminCommentStatsView.vue'
 
@@ -25,6 +28,24 @@ const router = createRouter({
       },
     },
     {
+      path: '/blogs',
+      name: 'blog-list',
+      component: BlogListView,
+    },
+    {
+      path: '/blog/editor/:id?',
+      name: 'blog-editor',
+      component: BlogEditorView,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/blog/:id',
+      name: 'blog-detail',
+      component: BlogDetailView,
+    },
+    {
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsersView,
@@ -32,11 +53,6 @@ const router = createRouter({
         requiresAuth: true,
         requiresAdmin: true,
       },
-    },
-    {
-      path: '/blog/:blogId/comments',
-      name: 'blog-comments',
-      component: BlogCommentView,
     },
     {
       path: '/admin/comments',

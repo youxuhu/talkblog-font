@@ -15,8 +15,8 @@ function goAdmin() {
   router.push('/admin/users')
 }
 
-function goComments() {
-  router.push('/blog/1/comments')
+function goBlog() {
+  router.push('/blogs')
 }
 
 function goAdminComments() {
@@ -67,9 +67,9 @@ function handleLogout() {
         </div>
 
         <div class="module-grid">
-          <div class="module-card" @click="goComments">
-            <span class="module-icon">💬</span>
-            <span class="module-label">博客评论</span>
+          <div class="module-card" @click="goBlog">
+            <span class="module-icon">📝</span>
+            <span class="module-label">博客列表</span>
           </div>
           <div v-if="canEnterAdmin" class="module-card" @click="goAdminComments">
             <span class="module-icon">📋</span>
@@ -160,7 +160,7 @@ function handleLogout() {
 
 .module-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
 }
 

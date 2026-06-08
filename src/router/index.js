@@ -4,6 +4,8 @@ import { isAdminUser, isAuthenticated } from '@/services/auth'
 import HomeView from '../views/HomeView.vue'
 import WelcomeView from '../views/WelcomeView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import ChatroomAdminView from '../views/ChatroomAdminView.vue'
+import ChatView from '../views/ChatView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,6 +30,31 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         requiresAdmin: true,
+      },
+    },
+    {
+      path: '/admin/chatrooms',
+      name: 'admin-chatrooms',
+      component: ChatroomAdminView,
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+      },
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: ChatView,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/chat/:id',
+      name: 'chat-room',
+      component: ChatView,
+      meta: {
+        requiresAuth: true,
       },
     },
   ],

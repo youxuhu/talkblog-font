@@ -15,6 +15,14 @@ function goAdmin() {
   router.push('/admin/users')
 }
 
+function goChatroomAdmin() {
+  router.push('/admin/chatrooms')
+}
+
+function goChat() {
+  router.push('/chat')
+}
+
 function handleLogout() {
   clearAuthState()
   router.push('/')
@@ -55,14 +63,15 @@ function handleLogout() {
         </div>
 
         <div class="session-tip">
-          管理员可以进入用户管理页查看分页列表、搜索用户并切换账户状态。
+          管理员可以进入用户管理页查看分页列表、搜索用户并切换账户状态。所有用户均可进入聊天室参与实时交流。
         </div>
       </div>
 
       <template #footer>
         <div class="welcome-actions">
-          <px-button type="primary" @click="goHome">返回首页</px-button>
-          <px-button v-if="canEnterAdmin" plain @click="goAdmin">进入后台</px-button>
+          <px-button type="primary" @click="goChat">进入聊天室</px-button>
+          <px-button v-if="canEnterAdmin" plain @click="goAdmin">用户管理</px-button>
+          <px-button v-if="canEnterAdmin" plain @click="goChatroomAdmin">聊天室管理</px-button>
           <px-button plain @click="handleLogout">退出登录</px-button>
         </div>
       </template>

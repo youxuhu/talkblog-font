@@ -81,6 +81,14 @@ export async function getChatGroups(token) {
   return requestJson('/api/chat/groups', { method: 'GET', token })
 }
 
+export async function getPublicChatGroups(token) {
+  return requestJson('/api/chat/groups/public', { method: 'GET', token })
+}
+
+export async function searchChatGroups(keyword, token) {
+  return requestJson('/api/chat/groups/search', { method: 'GET', token, query: { keyword } })
+}
+
 export async function getChatGroup(groupId, token) {
   return requestJson(`/api/chat/groups/${groupId}`, { method: 'GET', token })
 }
@@ -109,6 +117,10 @@ export async function deleteMessage(messageId, token) {
   return requestJson(`/api/chat/messages/${messageId}`, { method: 'DELETE', token })
 }
 
+export async function recallMessage(messageId, token) {
+  return requestJson(`/api/chat/messages/${messageId}/recall`, { method: 'POST', token })
+}
+
 export async function getAdminChatGroups({ page = 1, size = 10, keyword = '' }, token) {
   return requestJson('/api/admin/chat/groups', { method: 'GET', token, query: { page, size, keyword } })
 }
@@ -135,4 +147,28 @@ export async function getAdminChatMessages({ page = 1, size = 20, keyword, group
 
 export async function adminDeleteMessage(messageId, token) {
   return requestJson(`/api/admin/chat/messages/${messageId}`, { method: 'DELETE', token })
+}
+
+export async function applyJoinGroup(groupId, payload, token) {
+  return requestJson(`/api/chat/groups/${groupId}/apply`, { method: 'POST', payload, token })
+}
+
+export async function getGroupJoinRequests(groupId, token) {
+  return requestJson(`/api/chat/groups/${groupId}/requests`, { method: 'GET', token })
+}
+
+export async function approveJoinRequest(groupId, requestId, token) {
+  return requestJson(`/api/chat/groups/${groupId}/requests/${requestId}/approve`, { method: 'POST', token })
+}
+
+export async function rejectJoinRequest(groupId, requestId, token) {
+  return requestJson(`/api/chat/groups/${groupId}/requests/${requestId}/reject`, { method: 'POST', token })
+}
+
+export async function getMyJoinRequests(token) {
+  return requestJson('/api/chat/requests', { method: 'GET', token })
+}
+
+export async function updateGroupSettings(groupId, payload, token) {
+  return requestJson(`/api/chat/groups/${groupId}/settings`, { method: 'PUT', payload, token })
 }

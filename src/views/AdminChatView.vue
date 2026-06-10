@@ -505,7 +505,7 @@ function goBack() {
       v-model="currentGroup" 控制弹窗显示
       当 currentGroup 有值时弹窗显示，为 null 时关闭
     -->
-    <px-dialog 
+    <el-dialog 
       v-model="currentGroup" 
       :title="currentGroup?.group_name || '群组详情'" 
       width="640px"
@@ -612,10 +612,9 @@ function goBack() {
         </px-button>
         <px-button plain @click="currentGroup = null">关闭</px-button>
       </template>
-    </px-dialog>
+    </el-dialog>
 
-    <!-- ==================== 移出用户弹窗 ==================== -->
-    <px-dialog v-model="showBanModal" title="移出用户" width="400px">
+    <el-dialog v-model="showBanModal" title="移出用户" width="400px">
       <div class="ban-form">
         <!-- 移出原因输入 -->
         <label class="field-block">
@@ -636,9 +635,12 @@ function goBack() {
           确认移出
         </px-button>
       </template>
-    </px-dialog>
-  </main>
+    </el-dialog>
+
+</main>
+
 </template>
+
 
 <style scoped>
 /*

@@ -68,10 +68,12 @@ function getToken() {
 /**
  * 获取博客列表
  */
-export function getBlogList({ page = 1, size = 10, keyword = '' } = {}) {
+export function getBlogList({ page = 1, size = 10, keyword = '', categoryId, tagId, sortBy } = {}) {
+  const token = getToken()
   return requestJson('/api/blogs', {
     method: 'GET',
-    query: { page, size, keyword },
+    token,
+    query: { page, size, keyword, categoryId, tagId, sortBy },
   })
 }
 
@@ -79,8 +81,10 @@ export function getBlogList({ page = 1, size = 10, keyword = '' } = {}) {
  * 获取博客详情
  */
 export function getBlogDetail(blogId) {
+  const token = getToken()
   return requestJson(`/api/blogs/${blogId}`, {
     method: 'GET',
+    token,
   })
 }
 
@@ -120,6 +124,57 @@ export function deleteBlog(blogId) {
 }
 
 /**
+ * 上传博客图片
+ */
+export async function uploadBlogImage(file) {
+  const token = getToken()
+  if (!token) {
+    throw new Error('请先登录后再上传图片')
+  }
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(buildUrl('/api/blogs/upload-image'), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    throw new Error('图片上传失败（服务器响应异常）')
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || '图片上传失败')
+  }
+
+  if (data && data.success === false) {
+    throw new Error(data.message || '图片上传失败')
+  }
+
+  return data
+}
+
+/**
+ * 删除博客图片
+ */
+export async function deleteBlogImage(imageUrl) {
+  const token = getToken()
+  if (!token) {
+    throw new Error('请先登录')
+  }
+  return requestJson('/api/blogs/upload-image', {
+    method: 'DELETE',
+    token,
+    query: { url: imageUrl },
+  })
+}
+
+/**
  * 获取我的博客
  */
 export function getMyBlogs({ page = 1, size = 10 } = {}) {
@@ -128,5 +183,72 @@ export function getMyBlogs({ page = 1, size = 10 } = {}) {
     method: 'GET',
     token,
     query: { page, size },
+  })
+}
+
+/**
+ * 点赞/取消点赞博客
+ */
+export function likeBlog(blogId) {
+  const token = getToken()
+  return requestJson(`/api/blogs/${blogId}/like`, {
+    method: 'POST',
+    token,
+  })
+}
+
+/**
+ * 收藏/取消收藏博客
+ */
+export function favoriteBlog(blogId) {
+  const token = getToken()
+  return requestJson(`/api/blogs/${blogId}/favorite`, {
+    method: 'POST',
+    token,
+  })
+}
+
+/**
+ * 获取收藏的博客列表
+ */
+export function getFavoriteBlogs({ page = 1, size = 10 } = {}) {
+  const token = getToken()
+  return requestJson('/api/blogs/favorites', {
+    method: 'GET',
+    token,
+    query: { page, size },
+  })
+}
+
+/**
+ * 记录博客阅读
+ */
+export function recordView(blogId) {
+  return requestJson(`/api/blogs/${blogId}/view`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * 获取热门文章
+ */
+export function getPopular(limit = 10) {
+  const token = getToken()
+  return requestJson('/api/blogs/popular', {
+    method: 'GET',
+    token,
+    query: { limit },
+  })
+}
+
+/**
+ * 获取趋势文章
+ */
+export function getTrending(days = 7, limit = 10) {
+  const token = getToken()
+  return requestJson('/api/blogs/trending', {
+    method: 'GET',
+    token,
+    query: { days, limit },
   })
 }

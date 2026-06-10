@@ -14,8 +14,17 @@ export default defineConfig({
     cssMinify: false,
   },
   server: {
+    host: '0.0.0.0',
     proxy: {
+      '/api/ai': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
       '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

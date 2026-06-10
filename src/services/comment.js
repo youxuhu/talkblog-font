@@ -40,12 +40,40 @@ async function requestJson(path, { method = 'GET', payload, token, query } = {})
   return data
 }
 
-export function createComment(payload) {
-  return requestJson('/api/comments', {
+export async function createComment(payload) {
+  const formData = new FormData()
+  formData.append('blogId', payload.blogId)
+  formData.append('content', payload.content)
+  if (payload.parentId != null) {
+    formData.append('parentId', payload.parentId)
+  }
+  if (payload.replyToUserId != null) {
+    formData.append('replyToUserId', payload.replyToUserId)
+  }
+
+  const token = getAccessToken()
+  const response = await fetch(buildUrl('/api/comments'), {
     method: 'POST',
-    payload,
-    token: getAccessToken(),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
   })
+
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || '请求失败，请稍后重试')
+  }
+
+  if (data && data.success === false) {
+    throw new Error(data.message || '请求失败，请稍后重试')
+  }
+
+  return data
 }
 
 export function fetchComments({ blogId, page = 1, size = 10, parentId, status } = {}) {

@@ -104,6 +104,7 @@ onMounted(async () => {
         form.content = blog.content || ''
         form.categoryId = blog.categoryId || null
         form.tags = blog.tags || []
+        syncImagesFromContent()
       }
     } catch (err) {
       PxMessage.error(err.message || '加载博客失败')
@@ -181,6 +182,24 @@ const contentInputRef = ref(null)
 const titleInputRef = ref(null)
 const uploadingImage = ref(false)
 
+const uploadedImages = ref([])
+
+function extractContentImages() {
+  const urls = []
+  const regex = /!\[.*?\]\((.+?)\)/g
+  let match
+  while ((match = regex.exec(form.content)) !== null) {
+    if (!urls.includes(match[1])) {
+      urls.push(match[1])
+    }
+  }
+  return urls
+}
+
+function syncImagesFromContent() {
+  uploadedImages.value = extractContentImages().map(u => ({ url: u }))
+}
+
 function triggerFilePicker() {
   fileInputRef.value?.click()
 }
@@ -203,19 +222,11 @@ async function handleImageSelected(event) {
       return
     }
 
-    const markdown = `![image](${url})`
+    uploadedImages.value.push({ url })
+    PxMessage.success('图片已添加')
 
-    // 尝试在光标处插入
-    const textarea = contentInputRef.value?.$el?.querySelector('textarea')
-    if (textarea) {
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      form.content = form.content.substring(0, start) + markdown + form.content.substring(end)
-    } else {
-      form.content += markdown
-    }
-
-    PxMessage.success('图片已插入')
+    // 立即将图片 markdown 追加到内容末尾
+    form.content += (form.content ? '\n\n' : '') + `![image](${url})`
   } catch (err) {
     PxMessage.error(err.message || '图片上传失败')
   } finally {
@@ -224,33 +235,11 @@ async function handleImageSelected(event) {
   }
 }
 
-const showImageManager = ref(false)
-const imageManagerLoading = ref(false)
-
-function extractContentImages() {
-  const urls = []
-  const regex = /!\[.*?\]\((.+?)\)/g
-  let match
-  while ((match = regex.exec(form.content)) !== null) {
-    if (!urls.includes(match[1])) {
-      urls.push(match[1])
-    }
-  }
-  return urls
-}
-
-const contentImages = ref([])
-
-function openImageManager() {
-  contentImages.value = extractContentImages()
-  showImageManager.value = true
-}
-
 async function handleDeleteImage(imageUrl) {
   try {
     await deleteBlogImage(imageUrl)
-    contentImages.value = contentImages.value.filter(u => u !== imageUrl)
-    form.content = form.content.replace(new RegExp(`!\\[.*?\\]\\(${escapeRegex(imageUrl)}\\)`, 'g'), '')
+    uploadedImages.value = uploadedImages.value.filter(u => u.url !== imageUrl)
+    form.content = form.content.replace(new RegExp(`!\\[.*?\\]\\(${escapeRegex(imageUrl)}\\)`, 'g'), '').trim()
     PxMessage.success('图片已删除')
   } catch (err) {
     PxMessage.error(err.message || '删除失败')
@@ -265,25 +254,33 @@ const aiQuestion = ref('')
 const aiResponse = ref('')
 const aiLoading = ref(false)
 const aiPanelOpen = ref(false)
+const aiAbortController = ref(null)
 
 const lastReplacedText = ref(null)
 
 const aiPreamblePattern = /^(?:好的[，,。]?\s*|已为您\s*|以下是\s*|修改后[的：:]\s*|根据您的要求\s*|按照您的要求\s*|这是修改后的\s*|为您修改\s*|我已?经?为您\s*|新[的标题正文]?[：:]?\s*)/i
-const aiLabelPattern = /\*{0,2}(?:标题|内容|正文|修改[后後])[：:。]?\*{0,2}\s*/gi
+const aiLabelPattern = /^\s*\*{0,2}(?:标题|内容|正文|修改[后後])[：:。]?\*{0,2}\s*/i
 
 function cleanAIReply(reply) {
-  return reply.replace(aiPreamblePattern, '').replace(aiLabelPattern, '').trim()
+  let text = reply.replace(aiPreamblePattern, '')
+  while (aiLabelPattern.test(text)) {
+    text = text.replace(aiLabelPattern, '')
+  }
+  return text.trim()
 }
 
 function getTargetFromQuestion(question) {
   if (!question) return 'content'
   if (titlePresetActions.some(p => p.action === question)) return 'title'
+  // 引用标题作为内容生成依据，而非修改标题本身
+  if (/(?:根据|按照|对应|围绕|匹配|结合|对照|配合|基于|从).*标题|标题.*(?:内容|正文|文章|博客|段落)/i.test(question)) return 'content'
   if (/标题|title/i.test(question)) return 'title'
   return 'content'
 }
 
 function isModificationRequest(question) {
-  const keywords = ['润色', '纠正', '缩短', '扩写', '优化', '修改', '改写', '重写', '生成', '写一篇', '写一个', '写一段', '写', 'polish', 'rewrite', 'correct', 'shorten', 'expand', 'generate']
+  if (!question || question.includes('建议')) return false
+  const keywords = ['润色', '纠正', '缩短', '扩写', '优化', '修改', '改写', '重写', '生成', '写一篇', '写一个', '写一段', 'polish', 'rewrite', 'correct', 'shorten', 'expand', 'generate']
   return keywords.some(k => question.includes(k))
 }
 
@@ -331,6 +328,12 @@ async function handleAskAI(question) {
     return
   }
 
+  if (aiAbortController.value) {
+    aiAbortController.value.abort()
+  }
+  const controller = new AbortController()
+  aiAbortController.value = controller
+
   aiLoading.value = true
   try {
     const result = await askAI(
@@ -338,6 +341,7 @@ async function handleAskAI(question) {
       form.content,
       q,
       null,
+      controller.signal,
     )
     const reply = result?.response || ''
     if (!reply) {
@@ -350,14 +354,23 @@ async function handleAskAI(question) {
       applyAIContent(cleanAIReply(reply), q)
     }
   } catch (err) {
+    if (err.name === 'AbortError') return
     aiResponse.value = ''
     PxMessage.error(err.message || 'AI 请求失败')
   } finally {
     aiLoading.value = false
+    aiAbortController.value = null
+  }
+}
+
+function cancelAI() {
+  if (aiAbortController.value) {
+    aiAbortController.value.abort()
   }
 }
 
 function toggleAIPanel() {
+  if (aiPanelOpen.value) cancelAI()
   aiPanelOpen.value = !aiPanelOpen.value
 }
 </script>
@@ -473,12 +486,6 @@ function toggleAIPanel() {
               </template>
               插入图片
             </px-button>
-            <px-button size="small" plain @click="openImageManager">
-              <template #prepend>
-                <px-icon icon="trash-solid" size="14" />
-              </template>
-              图片管理
-            </px-button>
             <input
               ref="fileInputRef"
               type="file"
@@ -487,21 +494,16 @@ function toggleAIPanel() {
               @change="handleImageSelected"
             />
           </div>
-          <div v-if="showImageManager" class="image-manager">
-            <div class="image-manager-header">
-              <px-text size="14" tag="h3">图片管理</px-text>
-              <px-text v-if="!contentImages.length" size="13" type="secondary">当前内容中没有图片</px-text>
-            </div>
-            <div v-if="contentImages.length" class="image-list">
-              <div v-for="img in contentImages" :key="img" class="image-item">
-                <img :src="img" class="image-preview" @error="$event.target.style.display='none'" />
-                <div class="image-info">
-                  <px-text size="12" type="secondary" line-clamp="1">{{ img }}</px-text>
-                </div>
-                <px-button size="small" type="danger" plain :loading="imageManagerLoading" @click="handleDeleteImage(img)">删除</px-button>
-              </div>
+
+          <!-- 图片预览区 -->
+          <div v-if="uploadedImages.length" class="image-gallery">
+            <div v-for="(img, idx) in uploadedImages" :key="img.url" class="image-gallery-item">
+              <img :src="img.url" class="image-gallery-preview" @error="$event.target.style.display='none'" />
+              <button class="image-gallery-remove" @click="handleDeleteImage(img.url)" title="删除图片">&times;</button>
+              <span class="image-gallery-index">{{ idx + 1 }}</span>
             </div>
           </div>
+
           <px-input
             ref="contentInputRef"
             v-model="form.content"
@@ -563,9 +565,17 @@ function toggleAIPanel() {
             />
             <div class="ai-floating-actions">
               <px-button
+                v-if="aiLoading"
+                size="small"
+                :use-throttle="false"
+                @click="cancelAI"
+              >
+                取消
+              </px-button>
+              <px-button
+                v-else
                 type="primary"
                 size="small"
-                :loading="aiLoading"
                 :use-throttle="false"
                 @click="handleAskAI()"
               >
@@ -587,6 +597,7 @@ function toggleAIPanel() {
               </px-text>
               <button class="ai-undo-btn" @click="undoAIResponse">撤销</button>
             </div>
+
           </div>
         </div>
       </div>
@@ -771,28 +782,78 @@ function toggleAIPanel() {
   line-height: 1.8;
 }
 
-.image-list {
+.image-gallery {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 0;
+  gap: 12px;
+  padding: 12px;
+  background: #fafbfc;
+  border: 1px solid #e8edf0;
+  border-radius: 10px;
+  min-height: 0;
 }
 
-.image-item {
+.image-gallery-item {
+  position: relative;
+  width: 160px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e5e8;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.image-gallery-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.image-gallery-preview:hover {
+  transform: scale(1.05);
+}
+
+.image-gallery-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 4px 8px 4px 4px;
-  background: #fafafa;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-.image-preview {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  border-radius: 4px;
+.image-gallery-item:hover .image-gallery-remove {
+  opacity: 1;
+}
+
+.image-gallery-index {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
 }
 
 .ai-fab {
@@ -837,11 +898,11 @@ function toggleAIPanel() {
   position: fixed;
   bottom: 100px;
   right: 32px;
-  width: min(400px, 90vw);
-  max-height: 60vh;
+  width: min(520px, 92vw);
+  max-height: 75vh;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   animation: slideUp 0.25s ease;
@@ -891,33 +952,36 @@ function toggleAIPanel() {
 }
 
 .ai-floating-body {
-  padding: 16px 20px 20px;
+  padding: 20px 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   overflow-y: auto;
+  flex: 1;
 }
 
 .ai-floating-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .ai-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
 .ai-presets-label {
   flex-shrink: 0;
+  font-size: 13px;
 }
 
 .ai-preset-btn {
-  padding: 4px 12px;
-  border-radius: 14px;
-  border: 1px solid #c5d9e0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid #d0dde3;
   background: #fff;
   color: #385b66;
   font-size: 13px;
@@ -928,6 +992,7 @@ function toggleAIPanel() {
 .ai-preset-btn:hover:not(:disabled) {
   border-color: #7c4dff;
   color: #7c4dff;
+  background: #f8f6ff;
 }
 
 .ai-preset-btn:disabled {
@@ -937,43 +1002,54 @@ function toggleAIPanel() {
 
 .ai-loading {
   text-align: center;
-  padding: 12px;
-  color: #999;
-}
-
-.ai-response {
-  background: #f5f3ff;
-  border-radius: 8px;
   padding: 16px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  max-height: 320px;
-  overflow-y: auto;
+  color: #999;
 }
 
 .ai-undo-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
   background: #f0fdf4;
+  border: 1px solid #d8f0e0;
+}
+
+.ai-undo-bar .px-text {
+  font-size: 13px;
 }
 
 .ai-undo-btn {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 6px;
   border: 1px solid #86cfa3;
   background: #fff;
   color: #2e7d5a;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
+  font-weight: 500;
   transition: all 0.15s ease;
 }
 
 .ai-undo-btn:hover {
   background: #e8f8ee;
+  border-color: #5cb884;
+}
+
+.ai-response {
+  background: #f5f3ff;
+  border-radius: 10px;
+  padding: 16px 18px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 14px;
+  color: #2d3e47;
+  border: 1px solid #ede7f8;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);
 }
 
 @media (max-width: 640px) {
@@ -993,6 +1069,17 @@ function toggleAIPanel() {
   .header-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .ai-floating-panel {
+    right: 12px;
+    bottom: 80px;
+    width: calc(100vw - 24px);
+    max-height: 70vh;
+  }
+
+  .ai-floating-body {
+    padding: 16px;
   }
 }
 </style>

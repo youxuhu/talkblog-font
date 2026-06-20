@@ -14,6 +14,7 @@ import BlogDetailView from '../views/BlogDetailView.vue'
 import BlogEditorView from '../views/BlogEditorView.vue'
 import AdminCommentsView from '../views/AdminCommentsView.vue'
 import AdminCommentStatsView from '../views/AdminCommentStatsView.vue'
+import RecommendView from '../views/RecommendView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +27,7 @@ const router = createRouter({
     { path: '/blog/editor/:id?', name: 'blog-editor', component: BlogEditorView, meta: { requiresAuth: true } },
     { path: '/admin/comments', name: 'admin-comments', component: AdminCommentsView, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/comments/stats', name: 'admin-comment-stats', component: AdminCommentStatsView, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/recommend', name: 'recommend', component: RecommendView },
   ],
 })
 

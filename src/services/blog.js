@@ -252,3 +252,39 @@ export function getTrending(days = 7, limit = 10) {
     query: { days, limit },
   })
 }
+
+/**
+ * 获取点赞用户列表
+ */
+export function getUsersWhoLiked(blogId, page = 1, size = 20) {
+  const token = getToken()
+  return requestJson(`/api/blogs/${blogId}/likes/users`, {
+    method: 'GET',
+    token,
+    query: { page, size },
+  })
+}
+
+/**
+ * 获取收藏用户列表
+ */
+export function getUsersWhoFavorited(blogId, page = 1, size = 20) {
+  const token = getToken()
+  return requestJson(`/api/blogs/${blogId}/favorites/users`, {
+    method: 'GET',
+    token,
+    query: { page, size },
+  })
+}
+
+/**
+ * 获取浏览用户列表
+ */
+export function getUsersWhoViewed(blogId, page = 1, size = 20) {
+  const token = getToken()
+  return requestJson(`/api/blogs/${blogId}/views/users`, {
+    method: 'GET',
+    token,
+    query: { page, size },
+  })
+}

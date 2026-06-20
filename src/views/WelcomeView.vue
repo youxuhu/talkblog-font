@@ -79,6 +79,7 @@ async function handleRemoveFavorite(blogId) {
           返回首页
         </px-button>
         <div class="nav-right">
+          <px-button plain @click="router.push('/recommend')">推荐</px-button>
           <px-button plain @click="goBlog">博客管理</px-button>
           <px-button v-if="canEnterAdmin" plain @click="goAdmin">进入后台</px-button>
           <px-button plain @click="handleLogout">退出登录</px-button>

@@ -8,11 +8,12 @@ function buildUrl(path, query = {}) {
   return url.toString()
 }
 
-async function requestJson(path, { method = 'GET', payload, query } = {}) {
+async function requestJson(path, { method = 'GET', payload, query, signal } = {}) {
   const response = await fetch(buildUrl(path, query), {
     method,
     headers: payload ? { 'Content-Type': 'application/json' } : {},
     body: payload ? JSON.stringify(payload) : undefined,
+    signal,
   })
 
   let data = null
@@ -29,7 +30,7 @@ async function requestJson(path, { method = 'GET', payload, query } = {}) {
   return data
 }
 
-export function askAI(blogTitle, blogContent, question, selectedText = null) {
+export function askAI(blogTitle, blogContent, question, selectedText = null, signal = null) {
   const payload = { blog_title: blogTitle, blog_content: blogContent, question }
   if (selectedText) {
     payload.selected_text = selectedText
@@ -37,5 +38,6 @@ export function askAI(blogTitle, blogContent, question, selectedText = null) {
   return requestJson('/api/ai/help', {
     method: 'POST',
     payload,
+    signal,
   })
 }

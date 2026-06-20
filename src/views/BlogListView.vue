@@ -157,12 +157,20 @@ async function handleCardFavorite(event, blog) {
           <px-text size="12" type="secondary">浏览所有博客文章</px-text>
         </div>
       </div>
-      <px-button type="primary" @click="goToEditor()">
-        <template #prepend>
-          <px-icon icon="plus-solid" size="16" />
-        </template>
-        写博客
-      </px-button>
+      <div class="header-actions">
+        <px-button plain @click="router.push('/recommend')">
+          <template #prepend>
+            <px-icon icon="magic-solid" size="14" />
+          </template>
+          推荐
+        </px-button>
+        <px-button type="primary" @click="goToEditor()">
+          <template #prepend>
+            <px-icon icon="plus-solid" size="16" />
+          </template>
+          写博客
+        </px-button>
+      </div>
     </section>
 
     <div class="list-layout">

@@ -1,11 +1,11 @@
 <script setup>
-import { computed, onMounted, reactive, ref, nextTick } from 'vue'
+import { computed, onMounted, reactive, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
 import { ElMessage } from 'element-plus'
 import { createComment, fetchComments } from '@/services/comment'
 import { getCurrentUser, isAuthenticated } from '@/services/auth'
-import { recordView } from '@/services/blog'
+import { recordView, getUsersWhoLiked, getUsersWhoFavorited, getUsersWhoViewed } from '@/services/blog'
 import CommentItem from '@/components/CommentItem.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
@@ -57,6 +57,32 @@ const loggedIn = computed(() => isAuthenticated())
 const isAuthor = computed(() => {
   const user = currentUser.value
   return user && blog.value && blog.value.authorId === user.userId
+})
+
+const interactionUsers = ref([])
+const interactionTotal = ref(0)
+const interactionTab = ref('likes')
+
+async function loadInteractionUsers() {
+  if (!blogId.value || !isAuthor.value) return
+  try {
+    const fetcher = interactionTab.value === 'likes' ? getUsersWhoLiked
+      : interactionTab.value === 'favorites' ? getUsersWhoFavorited
+      : getUsersWhoViewed
+    const res = await fetcher(blogId.value, 1, 50)
+    interactionUsers.value = res.data?.list || []
+    interactionTotal.value = res.data?.total || 0
+  } catch {
+    interactionUsers.value = []
+    interactionTotal.value = 0
+  }
+}
+
+watch(isAuthor, (val) => {
+  if (val) {
+    recordView(blogId.value).catch(() => {})
+    loadInteractionUsers()
+  }
 })
 
 onMounted(() => {
@@ -282,6 +308,30 @@ async function handleFavorite() {
         </svg>
       </button>
     </div>
+
+    <section v-if="blog && isAuthor" class="interaction-section">
+      <div class="interaction-tabs">
+        <button
+          v-for="tab in [{key:'likes',label:'点赞'},{key:'favorites',label:'收藏'},{key:'views',label:'浏览'}]"
+          :key="tab.key"
+          class="interaction-tab"
+          :class="{ active: interactionTab === tab.key }"
+          @click="interactionTab = tab.key; loadInteractionUsers()"
+        >
+          {{ tab.label }}
+          <span class="interaction-count">{{ interactionTab === tab.key ? interactionTotal : '' }}</span>
+        </button>
+      </div>
+      <div class="interaction-users">
+        <div v-if="interactionUsers.length" class="user-avatar-list">
+          <div v-for="u in interactionUsers" :key="u.userId" class="user-avatar-item">
+            <img :src="u.avatarUrl || '/default-avatar.png'" class="user-avatar" />
+            <px-text size="12" class="user-name">{{ u.username }}</px-text>
+          </div>
+        </div>
+        <px-text v-else size="13" type="secondary" class="interaction-empty">暂无数据</px-text>
+      </div>
+    </section>
 
     <section v-if="blog" class="comment-section">
       <div class="comment-section-header">
@@ -561,6 +611,89 @@ async function handleFavorite() {
   font-size: 13px;
   font-weight: 600;
   color: #385b66;
+}
+
+.interaction-section {
+  margin-top: 28px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 10px;
+  border: 1px solid rgba(56, 91, 102, 0.1);
+}
+
+.interaction-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(56, 91, 102, 0.1);
+  padding-bottom: 10px;
+}
+
+.interaction-tab {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: #546e7a;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.interaction-tab:hover {
+  background: rgba(124, 77, 255, 0.08);
+  color: #7c4dff;
+}
+
+.interaction-tab.active {
+  background: #7c4dff;
+  color: #fff;
+}
+
+.interaction-count {
+  margin-left: 4px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.interaction-users {
+  min-height: 40px;
+}
+
+.user-avatar-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.user-avatar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 56px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e8ecf0;
+}
+
+.user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 56px;
+  text-align: center;
+}
+
+.interaction-empty {
+  display: block;
+  text-align: center;
+  padding: 12px 0;
 }
 
 @media (max-width: 640px) {

@@ -67,7 +67,7 @@ function getTrendMax() {
       </div>
 
       <div class="days-selector">
-        <px-text size="12" style="color: #6b7f87; margin-right: 8px">统计周期：</px-text>
+        <px-text size="12" class="period-label">统计周期：</px-text>
         <el-select v-model="selectedDays" size="small" style="width: 120px" @change="handleDaysChange">
           <el-option v-for="days in daysOptions" :key="days" :label="`最近 ${days} 天`" :value="days" />
         </el-select>
@@ -190,10 +190,7 @@ function getTrendMax() {
 .stats-page {
   min-height: 100vh;
   padding: 24px;
-  background:
-    linear-gradient(180deg, rgba(235, 240, 248, 0.96), rgba(242, 236, 226, 0.94)),
-    radial-gradient(circle at top right, rgba(93, 62, 240, 0.12), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(47, 133, 90, 0.12), transparent 28%);
+  background: var(--bg-admin);
 }
 
 .stats-header {
@@ -207,19 +204,24 @@ function getTrendMax() {
 
 .title {
   margin: 8px 0 6px;
-  color: #213547;
+  color: var(--color-text-primary);
   font-size: clamp(1.8rem, 4vw, 3rem);
 }
 
 .subtitle {
   margin: 0;
-  color: #385b66;
+  color: var(--color-text-secondary);
   font-size: 14px;
 }
 
 .days-selector {
   display: flex;
   align-items: center;
+}
+
+.period-label {
+  color: var(--color-text-muted);
+  margin-right: 8px;
 }
 
 .overview-grid {
@@ -234,9 +236,9 @@ function getTrendMax() {
   align-items: center;
   gap: 14px;
   padding: 18px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--card-bg-solid);
   border-radius: 14px;
-  border: 1px solid rgba(56, 91, 102, 0.1);
+  border: 1px solid var(--card-border);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
@@ -246,22 +248,22 @@ function getTrendMax() {
 }
 
 .stat-card.primary {
-  border-color: rgba(93, 62, 240, 0.25);
-  background: rgba(93, 62, 240, 0.06);
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg);
 }
 
 .stat-card.warning {
-  border-color: rgba(237, 137, 54, 0.25);
+  border-color: var(--color-warning);
   background: rgba(237, 137, 54, 0.06);
 }
 
 .stat-card.success {
-  border-color: rgba(47, 133, 90, 0.25);
+  border-color: var(--color-success);
   background: rgba(47, 133, 90, 0.06);
 }
 
 .stat-card.danger {
-  border-color: rgba(229, 62, 62, 0.25);
+  border-color: var(--color-danger);
   background: rgba(229, 62, 62, 0.06);
 }
 
@@ -273,13 +275,13 @@ function getTrendMax() {
 .stat-value {
   font-size: 24px;
   font-weight: 800;
-  color: #213547;
+  color: var(--color-text-primary);
   line-height: 1.2;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #6b7f87;
+  color: var(--color-text-muted);
   margin-top: 4px;
 }
 
@@ -289,14 +291,14 @@ function getTrendMax() {
 
 .chart-card {
   padding: 20px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--card-bg-solid);
   border-radius: 14px;
-  border: 1px solid rgba(56, 91, 102, 0.1);
+  border: 1px solid var(--card-border);
 }
 
 .chart-title {
   margin: 0 0 16px;
-  color: #213547;
+  color: var(--color-text-primary);
   font-size: 16px;
   font-weight: 700;
 }
@@ -323,25 +325,25 @@ function getTrendMax() {
   width: 100%;
   max-width: 32px;
   min-height: 4px;
-  background: linear-gradient(180deg, #7c4dff, #5d3ef0);
+  background: linear-gradient(180deg, var(--color-accent), var(--color-accent-hover));
   border-radius: 6px 6px 0 0;
   transition: height 0.3s;
 }
 
 .trend-bar:hover {
-  background: linear-gradient(180deg, #9c7fff, #7c4dff);
+  filter: brightness(1.2);
 }
 
 .trend-label {
   font-size: 10px;
-  color: #9ca3af;
+  color: var(--color-text-light);
   white-space: nowrap;
 }
 
 .chart-empty {
   text-align: center;
   padding: 40px 0;
-  color: #9ca3af;
+  color: var(--color-text-light);
 }
 
 .tables-row {
@@ -352,14 +354,14 @@ function getTrendMax() {
 
 .table-card {
   padding: 20px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--card-bg-solid);
   border-radius: 14px;
-  border: 1px solid rgba(56, 91, 102, 0.1);
+  border: 1px solid var(--card-border);
 }
 
 .card-title {
   margin: 0 0 16px;
-  color: #213547;
+  color: var(--color-text-primary);
   font-size: 16px;
   font-weight: 700;
 }

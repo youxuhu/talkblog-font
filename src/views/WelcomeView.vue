@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { clearAuthState, getCurrentUser, isAdminUser } from '@/services/auth'
+import { useThemeStore } from '@/stores/theme'
 
 const router = useRouter()
+const themeStore = useThemeStore()
 const user = computed(() => getCurrentUser())
 const canEnterAdmin = computed(() => isAdminUser())
 
@@ -21,6 +23,14 @@ function goBlog() {
 
 function goAdminComments() {
   router.push('/admin/comments')
+}
+
+function goProfile() {
+  router.push('/profile')
+}
+
+function goBookmarks() {
+  router.push('/bookmarks')
 }
 
 function handleLogout() {
@@ -71,10 +81,23 @@ function handleLogout() {
             <span class="module-icon">📝</span>
             <span class="module-label">博客列表</span>
           </div>
-          <div v-if="canEnterAdmin" class="module-card" @click="goAdminComments">
-            <span class="module-icon">📋</span>
-            <span class="module-label">评论管理</span>
+          <div class="module-card" @click="router.push('/series')">
+            <span class="module-icon">📂</span>
+            <span class="module-label">文章专栏</span>
           </div>
+          <div class="module-card" @click="goBookmarks">
+            <span class="module-icon">⭐</span>
+            <span class="module-label">我的收藏</span>
+          </div>
+          <div class="module-card" @click="goProfile">
+            <span class="module-icon">👤</span>
+            <span class="module-label">个人设置</span>
+          </div>
+           <div v-if="canEnterAdmin" class="module-card" @click="goAdminComments">
+             <span class="module-icon">📋</span>
+             <span class="module-label">评论管理</span>
+           </div>
+
         </div>
       </div>
 
@@ -82,6 +105,9 @@ function handleLogout() {
         <div class="welcome-actions">
           <px-button type="primary" @click="goHome">返回首页</px-button>
           <px-button v-if="canEnterAdmin" plain @click="goAdmin">用户管理</px-button>
+          <px-button plain :use-throttle="false" @click="themeStore.toggle()">
+            {{ themeStore.isDark ? '☀️ 亮色' : '🌙 暗色' }}
+          </px-button>
           <px-button plain @click="handleLogout">退出登录</px-button>
         </div>
       </template>
@@ -95,9 +121,7 @@ function handleLogout() {
   display: grid;
   place-items: center;
   padding: 24px;
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.9), rgba(235, 230, 224, 0.92) 45%, rgba(193, 225, 193, 0.88)),
-    linear-gradient(135deg, #f7f4ef, #ddebd7);
+  background: var(--bg-welcome);
 }
 
 .welcome-card {
@@ -129,26 +153,26 @@ function handleLogout() {
   gap: 8px;
   padding: 14px 16px;
   border-radius: 14px;
-  border: 1px solid rgba(56, 91, 102, 0.12);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
 }
 
 .info-label {
   font-size: 12px;
-  color: #6b7f87;
+  color: var(--color-text-muted);
 }
 
 .info-value {
-  color: #213547;
+  color: var(--color-text-primary);
   font-weight: 700;
   word-break: break-all;
 }
 
 .session-tip {
   padding: 16px;
-  border-left: 4px solid #5d3ef0;
-  background: rgba(93, 62, 240, 0.08);
-  color: #385b66;
+  border-left: 4px solid var(--color-accent-hover);
+  background: var(--color-accent-bg);
+  color: var(--color-text-secondary);
   line-height: 1.7;
 }
 
@@ -170,8 +194,8 @@ function handleLogout() {
   gap: 12px;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(56, 91, 102, 0.12);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
@@ -179,7 +203,7 @@ function handleLogout() {
 .module-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  border-color: rgba(93, 62, 240, 0.3);
+  border-color: var(--color-accent);
 }
 
 .module-icon {
@@ -187,7 +211,7 @@ function handleLogout() {
 }
 
 .module-label {
-  color: #213547;
+  color: var(--color-text-primary);
   font-weight: 600;
   font-size: 14px;
 }

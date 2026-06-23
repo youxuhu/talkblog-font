@@ -13,6 +13,9 @@ export const useCommentStore = defineStore('comment', () => {
   const adminTotal = ref(0)
   const query = ref({ page: 1, size: 10 })
   const adminQuery = ref({ page: 1, size: 10, keyword: '', status: '', blogId: '' })
+  const reports = ref([])
+  const reportTotal = ref(0)
+  const reportQuery = ref({ page: 1, size: 10, status: '' })
 
   const commentCount = computed(() => comments.value.length)
 
@@ -130,6 +133,30 @@ export const useCommentStore = defineStore('comment', () => {
     }
   }
 
+  async function fetchReports(opts = {}) {
+    loading.value = true
+    try {
+      const q = { ...reportQuery.value, ...opts }
+      const result = await commentService.fetchReports({
+        page: q.page,
+        size: q.size,
+        status: q.status !== '' ? Number(q.status) : undefined,
+      })
+      reports.value = result?.data?.list || []
+      reportTotal.value = result?.data?.total || 0
+      return result
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function handleReport(reportId, status) {
+    const result = await commentService.handleReport(reportId, status)
+    const report = reports.value.find((r) => r.id === reportId)
+    if (report) report.status = status
+    return result
+  }
+
   function resetQuery() {
     query.value = { page: 1, size: 10 }
     comments.value = []
@@ -164,6 +191,11 @@ export const useCommentStore = defineStore('comment', () => {
     batchReview,
     removeComment,
     fetchStats,
+    fetchReports,
+    handleReport,
+    reports,
+    reportTotal,
+    reportQuery,
     resetQuery,
     resetAdminQuery,
   }

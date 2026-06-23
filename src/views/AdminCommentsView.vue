@@ -12,6 +12,12 @@ const tableData = ref([])
 const total = ref(0)
 const selectedIds = ref([])
 
+const swLoading = ref(false)
+const swTableData = ref([])
+const swDialogVisible = ref(false)
+const swSaving = ref(false)
+const swForm = reactive({ word: '', replacement: '***' })
+
 const query = reactive({
   page: 1,
   size: 10,
@@ -167,6 +173,96 @@ function goBack() {
 function goToStats() {
   router.push('/admin/comments/stats')
 }
+
+function goToReports() {
+  router.push('/admin/comments/reports')
+}
+
+async function handleTogglePin(row) {
+  try {
+    const result = await commentService.togglePin(row.commentId)
+    const pinned = result?.data?.isPinned
+    row.isPinned = pinned
+    ElMessage.success(pinned ? '已置顶' : '已取消置顶')
+  } catch (error) {
+    ElMessage.error(error?.message || '操作失败')
+  }
+}
+
+function swBuildUrl(path) {
+  const base = import.meta.env.VITE_API_BASE_URL || ''
+  return `${base}${path}`
+}
+
+async function swRequest(path, options = {}) {
+  const { method = 'GET', payload } = options
+  const response = await fetch(swBuildUrl(path), {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getAccessToken()}`,
+    },
+    body: payload ? JSON.stringify(payload) : undefined,
+  })
+  let data = null
+  try { data = await response.json() } catch { data = null }
+  if (!response.ok || data?.success === false) {
+    throw new Error(data?.message || '请求失败')
+  }
+  return data
+}
+
+async function swLoad() {
+  swLoading.value = true
+  try {
+    const result = await swRequest('/api/admin/sensitive-words')
+    swTableData.value = result?.data || []
+  } catch (error) {
+    ElMessage.error(error?.message || '加载敏感词失败')
+  } finally {
+    swLoading.value = false
+  }
+}
+
+function swOpenDialog() {
+  swForm.word = ''
+  swForm.replacement = '***'
+  swDialogVisible.value = true
+}
+
+async function swAdd() {
+  if (!swForm.word.trim()) {
+    ElMessage.warning('请输入敏感词')
+    return
+  }
+  swSaving.value = true
+  try {
+    await swRequest('/api/admin/sensitive-words', {
+      method: 'POST',
+      payload: { word: swForm.word.trim(), replacement: swForm.replacement.trim() || '***' },
+    })
+    ElMessage.success('添加成功')
+    swDialogVisible.value = false
+    await swLoad()
+  } catch (error) {
+    ElMessage.error(error?.message || '添加失败')
+  } finally {
+    swSaving.value = false
+  }
+}
+
+async function swDelete(row) {
+  try {
+    await ElMessageBox.confirm(`确认删除敏感词「${row.word}」？`, '确认删除', { type: 'warning' })
+    await swRequest(`/api/admin/sensitive-words/${row.id}`, { method: 'DELETE' })
+    ElMessage.success('已删除')
+    await swLoad()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error?.message || '删除失败')
+    }
+  }
+}
 </script>
 
 <template>
@@ -183,6 +279,12 @@ function goToStats() {
       <div class="header-actions">
         <px-button plain :use-throttle="false" @click="goToStats">
           数据统计
+        </px-button>
+        <px-button plain :use-throttle="false" @click="goToReports">
+          举报管理
+        </px-button>
+        <px-button plain :use-throttle="false" @click="swOpenDialog">
+          敏感词库
         </px-button>
       </div>
     </section>
@@ -262,6 +364,16 @@ function goToStats() {
             </div>
           </template>
         </el-table-column>
+        <el-table-column label="置顶" width="70" align="center">
+          <template #default="scope">
+            <el-tag v-if="scope.row.isPinned" type="warning" size="small">置顶</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="编辑" width="60" align="center">
+          <template #default="scope">
+            <span v-if="scope.row.editCount > 0" class="edited-text">{{ scope.row.editCount }} 次</span>
+          </template>
+        </el-table-column>
         <el-table-column label="评论内容" min-width="220">
           <template #default="scope">
             <el-tooltip :content="scope.row.content" placement="top" :show-after="300">
@@ -291,7 +403,7 @@ function goToStats() {
             {{ formatDate(scope.row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="scope">
             <template v-if="scope.row.status === 0">
               <el-button
@@ -311,6 +423,14 @@ function goToStats() {
                 拒绝
               </el-button>
             </template>
+            <el-button
+              link
+              :type="scope.row.isPinned ? 'warning' : 'default'"
+              size="small"
+              @click="handleTogglePin(scope.row)"
+            >
+              {{ scope.row.isPinned ? '取消置顶' : '置顶' }}
+            </el-button>
             <el-button
               link
               type="danger"
@@ -337,6 +457,34 @@ function goToStats() {
         />
       </div>
     </el-card>
+
+    <el-dialog v-model="swDialogVisible" title="敏感词库" width="520px" @open="swLoad">
+      <el-table :data="swTableData" v-loading="swLoading" stripe border max-height="300">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="word" label="敏感词" min-width="180" />
+        <el-table-column prop="replacement" label="替换为" width="100" />
+        <el-table-column label="操作" width="80" fixed="right">
+          <template #default="scope">
+            <el-button link type="danger" size="small" @click="swDelete(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-divider />
+
+      <el-form label-position="top">
+        <el-form-item label="敏感词" required>
+          <el-input v-model="swForm.word" placeholder="请输入敏感词" />
+        </el-form-item>
+        <el-form-item label="替换为">
+          <el-input v-model="swForm.replacement" placeholder="默认 ***" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="swDialogVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="swSaving" @click="swAdd">添加</el-button>
+      </template>
+    </el-dialog>
   </main>
 </template>
 
@@ -344,10 +492,7 @@ function goToStats() {
 .admin-comments-page {
   min-height: 100vh;
   padding: 24px;
-  background:
-    linear-gradient(180deg, rgba(235, 240, 248, 0.96), rgba(242, 236, 226, 0.94)),
-    radial-gradient(circle at top right, rgba(93, 62, 240, 0.12), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(47, 133, 90, 0.12), transparent 28%);
+  background: var(--bg-admin);
 }
 
 .admin-hero {
@@ -359,24 +504,15 @@ function goToStats() {
   align-items: flex-start;
 }
 
-.eyebrow {
-  margin: 0 0 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #5d3ef0;
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .title {
   margin: 8px 0 6px;
-  color: #213547;
+  color: var(--color-text-primary);
   font-size: clamp(1.8rem, 4vw, 3rem);
 }
 
 .subtitle {
   margin: 0;
-  color: #385b66;
+  color: var(--color-text-secondary);
   font-size: 14px;
 }
 
@@ -400,13 +536,13 @@ function goToStats() {
   gap: 12px;
   margin-bottom: 16px;
   padding: 12px 16px;
-  background: rgba(93, 62, 240, 0.06);
+  background: var(--color-accent-bg);
   border-radius: 12px;
-  border: 1px solid rgba(93, 62, 240, 0.15);
+  border: 1px solid var(--color-accent);
 }
 
 .selected-count {
-  color: #5d3ef0;
+  color: var(--color-accent);
   font-weight: 600;
   font-size: 14px;
   margin-right: 8px;
@@ -418,11 +554,11 @@ function goToStats() {
 
 .user-cell {
   font-weight: 600;
-  color: #213547;
+  color: var(--color-text-primary);
 }
 
 .user-email {
-  color: #9ca3af;
+  color: var(--color-text-light);
   font-size: 12px;
 }
 
@@ -432,7 +568,7 @@ function goToStats() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #385b66;
+  color: var(--color-text-secondary);
 }
 
 .pager-row {
@@ -445,7 +581,12 @@ function goToStats() {
 }
 
 .pager-summary {
-  color: #6b7f87;
+  color: var(--color-text-muted);
+}
+
+.edited-text {
+  color: var(--color-text-muted);
+  font-size: 12px;
 }
 
 @media (max-width: 768px) {

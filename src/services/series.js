@@ -1,15 +1,7 @@
-/**
- * 博客 API 服务层
- * 封装与后端博客接口的 HTTP 通信
- */
-
 import { getAccessToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
-/**
- * 构建带查询参数的 URL
- */
 function buildUrl(path, query = {}) {
   const url = new URL(`${API_BASE_URL}${path}`, window.location.origin)
   Object.entries(query).forEach(([key, value]) => {
@@ -20,9 +12,6 @@ function buildUrl(path, query = {}) {
   return url.toString()
 }
 
-/**
- * 统一请求方法
- */
 async function requestJson(path, options = {}) {
   const { method = 'GET', payload, token, headers = {}, query } = options
   const url = buildUrl(path, query)
@@ -37,7 +26,7 @@ async function requestJson(path, options = {}) {
   if (payload) {
     requestOptions.body = JSON.stringify(payload)
   }
-  
+
   const response = await fetch(url, requestOptions)
 
   let data = null
@@ -58,84 +47,52 @@ async function requestJson(path, options = {}) {
   return data
 }
 
-/**
- * 获取 Token
- */
 function getToken() {
   return getAccessToken()
 }
 
-/**
- * 获取博客列表
- */
-export function getBlogList({ page = 1, size = 10, keyword = '', seriesId = '', category = '' } = {}) {
-  return requestJson('/api/blogs', {
+export function getSeriesList({ page = 1, size = 20 } = {}) {
+  return requestJson('/api/series', {
     method: 'GET',
-    query: { page, size, keyword, seriesId, category },
+    query: { page, size },
   })
 }
 
-/**
- * 获取博客详情
- */
-export function getBlogDetail(blogId) {
-  return requestJson(`/api/blogs/${blogId}`, {
+export function getSeriesDetail(seriesId) {
+  return requestJson(`/api/series/${seriesId}`, {
     method: 'GET',
   })
 }
 
-/**
- * 创建博客
- */
-export function createBlog(payload) {
+export function createSeries(payload) {
   const token = getToken()
-  return requestJson('/api/blogs', {
+  return requestJson('/api/series', {
     method: 'POST',
     token,
     payload,
   })
 }
 
-/**
- * 更新博客
- */
-export function updateBlog(blogId, payload) {
+export function updateSeries(seriesId, payload) {
   const token = getToken()
-  return requestJson(`/api/blogs/${blogId}`, {
+  return requestJson(`/api/series/${seriesId}`, {
     method: 'PUT',
     token,
     payload,
   })
 }
 
-/**
- * 删除博客
- */
-export function deleteBlog(blogId) {
+export function deleteSeries(seriesId) {
   const token = getToken()
-  return requestJson(`/api/blogs/${blogId}`, {
+  return requestJson(`/api/series/${seriesId}`, {
     method: 'DELETE',
     token,
   })
 }
 
-/**
- * 获取我的博客
- */
-export function getMyBlogs({ page = 1, size = 10, status = '' } = {}) {
-  const token = getToken()
-  return requestJson('/api/blogs/my', {
+export function getSeriesBlogs(seriesId, { page = 1, size = 10 } = {}) {
+  return requestJson(`/api/series/${seriesId}/blogs`, {
     method: 'GET',
-    token,
-    query: { page, size, status },
-  })
-}
-
-/**
- * 获取所有系列列表（精简）
- */
-export function getAllSeries() {
-  return requestJson('/api/series/all', {
-    method: 'GET',
+    query: { page, size },
   })
 }

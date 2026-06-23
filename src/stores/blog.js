@@ -16,16 +16,17 @@ export const useBlogStore = defineStore('blog', () => {
   const currentPage = ref(1)
   const pageSize = ref(10)
   const keyword = ref('')
+  const selectedCategory = ref('')
 
   // 计算属性
   const hasMore = computed(() => blogs.value.length < total.value)
 
   // 获取博客列表
   async function fetchBlogs(options = {}) {
-    const { page = 1, size = 10, keyword: kw = '' } = options
+    const { page = 1, size = 10, keyword: kw = '', seriesId: sid = '', category = '' } = options
     loading.value = true
     try {
-      const result = await blogApi.getBlogList({ page, size, keyword: kw })
+      const result = await blogApi.getBlogList({ page, size, keyword: kw, seriesId: sid, category })
       if (page === 1) {
         blogs.value = result.data?.list || []
       } else {
@@ -35,6 +36,7 @@ export const useBlogStore = defineStore('blog', () => {
       currentPage.value = page
       pageSize.value = size
       keyword.value = kw
+      if (category !== undefined) selectedCategory.value = category
     } finally {
       loading.value = false
     }
@@ -111,6 +113,7 @@ export const useBlogStore = defineStore('blog', () => {
     currentPage,
     pageSize,
     keyword,
+    selectedCategory,
     hasMore,
     fetchBlogs,
     fetchBlogDetail,

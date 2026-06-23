@@ -424,11 +424,7 @@ function fillSamplePassword() {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
   gap: 24px;
   padding: 24px;
-  background:
-    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
-    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
-    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
-    #ebe6e0;
+  background: var(--bg-page);
   align-items: center;
   max-width: 1200px;
   margin: 0 auto;
@@ -464,13 +460,13 @@ function fillSamplePassword() {
   margin: 0;
   font-size: clamp(2rem, 5vw, 4.4rem);
   line-height: 1.05;
-  color: #213547;
+  color: var(--color-text-primary);
 }
 
 .hero-subtitle {
   max-width: 680px;
   margin: 0;
-  color: #385b66;
+  color: var(--color-text-secondary);
   line-height: 1.7;
 }
 
@@ -503,10 +499,8 @@ function fillSamplePassword() {
   max-height: 420px;
   width: 100%;
   border: none;
-  outline: var(--camera-border, 2px) solid #385b66;
-  background:
-    linear-gradient(135deg, rgba(56, 91, 102, 0.08), rgba(124, 77, 255, 0.08)),
-    #dce9ef;
+  outline: var(--camera-border);
+  background: var(--camera-bg);
   box-sizing: border-box;
   padding: 0;
 }
@@ -544,14 +538,14 @@ function fillSamplePassword() {
   display: grid;
   place-items: center;
   padding: 24px;
-  color: #385b66;
+  color: var(--color-text-secondary);
   text-align: center;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18));
   backdrop-filter: blur(4px);
 }
 
 .camera-error {
-  color: #b83280;
+  color: var(--color-danger);
 }
 
 .camera-actions,
@@ -570,10 +564,10 @@ function fillSamplePassword() {
 
 .mode-button {
   padding: 12px 14px;
-  border: 2px solid rgba(56, 91, 102, 0.18);
+  border: 2px solid var(--card-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.68);
-  color: #385b66;
+  background: var(--input-bg);
+  color: var(--color-text-secondary);
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -581,13 +575,13 @@ function fillSamplePassword() {
 
 .mode-button:hover {
   transform: translateY(-1px);
-  border-color: rgba(56, 91, 102, 0.45);
+  border-color: var(--color-text-muted);
 }
 
 .mode-button.active {
-  border-color: #7c4dff;
-  color: #5d3ef0;
-  background: rgba(124, 77, 255, 0.12);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+  background: var(--tag-bg);
 }
 
 .form-fields {
@@ -603,7 +597,7 @@ function fillSamplePassword() {
 }
 
 .field-label {
-  color: #385b66;
+  color: var(--color-text-secondary);
   font-size: 0.92rem;
   font-weight: 700;
 }
@@ -614,9 +608,9 @@ function fillSamplePassword() {
   gap: 10px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(56, 91, 102, 0.12);
-  color: #385b66;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--color-text-secondary);
 }
 
 .hidden-canvas {

@@ -173,10 +173,7 @@ async function handleToggleStatus(row) {
 .admin-page {
   min-height: 100vh;
   padding: 24px;
-  background:
-    linear-gradient(180deg, rgba(235, 240, 248, 0.96), rgba(242, 236, 226, 0.94)),
-    radial-gradient(circle at top right, rgba(93, 62, 240, 0.12), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(47, 133, 90, 0.12), transparent 28%);
+  background: var(--bg-admin);
 }
 
 .admin-hero {
@@ -191,20 +188,20 @@ async function handleToggleStatus(row) {
   margin: 0 0 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #5d3ef0;
+  color: var(--color-accent-hover);
   font-size: 12px;
   font-weight: 800;
 }
 
 .title {
   margin: 0;
-  color: #213547;
+  color: var(--color-text-primary);
   font-size: clamp(1.8rem, 4vw, 3rem);
 }
 
 .subtitle {
   margin: 10px 0 0;
-  color: #385b66;
+  color: var(--color-text-secondary);
 }
 
 .search-bar {
@@ -229,7 +226,7 @@ async function handleToggleStatus(row) {
 
 .pager-summary,
 .muted {
-  color: #6b7f87;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 768px) {

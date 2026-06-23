@@ -1,7 +1,7 @@
 <script setup>
 /**
  * 博客编辑页
- * 功能：创建新博客、编辑已有博客
+ * 功能：创建新博客、编辑已有博客，支持专栏选择、分类选择与定时发布
  */
 
 import { onMounted, ref, computed, reactive, nextTick } from 'vue'
@@ -9,6 +9,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
 import { PxMessage } from '@mmt817/pixel-ui'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import { getAllSeries } from '@/services/blog'
+import { CATEGORIES } from '@/config/categories'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,10 +28,19 @@ const isLoading = ref(false)
 // 保存状态
 const isSaving = ref(false)
 
+// 专栏列表
+const seriesOptions = ref([])
+
+// 是否显示定时发布
+const showSchedule = ref(false)
+
 // 表单数据
 const form = reactive({
   title: '',
   content: '',
+  seriesId: '',
+  category: '',
+  scheduledAt: '',
 })
 
 // 计算字数
@@ -37,8 +48,19 @@ const titleLength = computed(() => form.title?.length || 0)
 const contentLength = computed(() => form.content?.length || 0)
 const contentRemaining = computed(() => 10000 - contentLength.value)
 
+// 加载专栏列表
+async function loadSeries() {
+  try {
+    const result = await getAllSeries()
+    seriesOptions.value = result.data?.list || result.data || []
+  } catch {
+    seriesOptions.value = []
+  }
+}
+
 // 组件挂载时加载博客数据
 onMounted(async () => {
+  loadSeries()
   if (isEditMode.value) {
     isLoading.value = true
     try {
@@ -46,6 +68,12 @@ onMounted(async () => {
       if (blog) {
         form.title = blog.title || ''
         form.content = blog.content || ''
+        form.seriesId = blog.seriesId || ''
+        form.category = blog.category || ''
+        if (blog.scheduledAt) {
+          form.scheduledAt = blog.scheduledAt
+          showSchedule.value = true
+        }
       }
     } catch (err) {
       PxMessage.error(err.message || '加载博客失败')
@@ -76,11 +104,19 @@ async function handleSubmit() {
     return
   }
 
+  if (showSchedule.value && !form.scheduledAt) {
+    PxMessage.warning('请选择定时发布时间')
+    return
+  }
+
   isSaving.value = true
   try {
     const payload = {
       title: form.title.trim(),
       content: form.content.trim(),
+      seriesId: form.seriesId || undefined,
+      category: form.category || undefined,
+      scheduledAt: showSchedule.value ? form.scheduledAt : undefined,
     }
 
     if (isEditMode.value) {
@@ -88,8 +124,13 @@ async function handleSubmit() {
       PxMessage.success('博客更新成功')
       router.push(`/blog/${blogId.value}`)
     } else {
-      await blogStore.createBlog(payload)
-      PxMessage.success('博客发布成功')
+      const result = await blogStore.createBlog(payload)
+      const isScheduled = showSchedule.value && form.scheduledAt
+      if (isScheduled) {
+        PxMessage.success('定时发布已设置')
+      } else {
+        PxMessage.success('博客发布成功')
+      }
       router.push('/blogs')
     }
   } catch (err) {
@@ -127,10 +168,20 @@ function handleReset() {
     if (blogStore.currentBlog) {
       form.title = blogStore.currentBlog.title || ''
       form.content = blogStore.currentBlog.content || ''
+      form.seriesId = blogStore.currentBlog.seriesId || ''
+      form.category = blogStore.currentBlog.category || ''
+      if (blogStore.currentBlog.scheduledAt) {
+        form.scheduledAt = blogStore.currentBlog.scheduledAt
+        showSchedule.value = true
+      }
     }
   } else {
     form.title = ''
     form.content = ''
+    form.seriesId = ''
+    form.category = ''
+    form.scheduledAt = ''
+    showSchedule.value = false
   }
 }
 </script>
@@ -177,6 +228,71 @@ function handleReset() {
           />
         </label>
 
+        <!-- 分类选择 -->
+        <label class="form-field">
+          <div class="field-header">
+            <span class="field-label">分类</span>
+          </div>
+          <el-select
+            v-model="form.category"
+            placeholder="选择分类（可选）"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="cat in CATEGORIES"
+              :key="cat.value"
+              :value="cat.value"
+            >
+              <span style="margin-right: 8px">{{ cat.icon }}</span>
+              <span>{{ cat.label }}</span>
+            </el-option>
+          </el-select>
+        </label>
+
+        <!-- 专栏选择 -->
+        <label class="form-field">
+          <div class="field-header">
+            <span class="field-label">所属专栏</span>
+          </div>
+          <el-select
+            v-model="form.seriesId"
+            placeholder="选择专栏（可选）"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in seriesOptions"
+              :key="s.id"
+              :value="s.id"
+              :label="s.name"
+            />
+          </el-select>
+        </label>
+
+        <!-- 定时发布 -->
+        <label class="form-field">
+          <div class="field-header">
+            <span class="field-label">定时发布</span>
+            <px-button plain size="small" @click="showSchedule = !showSchedule">
+              {{ showSchedule ? '取消定时' : '设置定时' }}
+            </px-button>
+          </div>
+          <template v-if="showSchedule">
+            <el-date-picker
+              v-model="form.scheduledAt"
+              type="datetime"
+              placeholder="选择定时发布时间"
+              :disabled-date="(time) => time.getTime() < Date.now() - 86400000"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              style="width: 100%"
+            />
+            <px-text v-if="form.scheduledAt" size="12" type="secondary">
+              博客将在 {{ new Date(form.scheduledAt).toLocaleString('zh-CN') }} 自动发布
+            </px-text>
+          </template>
+        </label>
+
         <!-- 内容字段 -->
         <label class="form-field content-field">
           <div class="field-header">
@@ -210,11 +326,7 @@ function handleReset() {
   padding: 24px;
   max-width: 900px;
   margin: 0 auto;
-  background:
-    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
-    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
-    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
-    #ebe6e0;
+  background: var(--bg-page);
   box-sizing: border-box;
 }
 
@@ -260,7 +372,7 @@ function handleReset() {
 }
 
 .field-label {
-  color: #385b66;
+  color: var(--color-text-secondary);
   font-size: 14px;
   font-weight: 700;
 }

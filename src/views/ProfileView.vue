@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { PxMessage } from '@mmt817/pixel-ui'
 import { ElMessage } from 'element-plus'
-import { getCurrentUser, updateProfile, changePassword, uploadAvatar, isAdminUser, saveAuthState, getAuthState } from '@/services/auth'
+import { getCurrentUser, updateProfile, changePassword, uploadAvatar, reRegisterFace, isAdminUser, saveAuthState, getAuthState } from '@/services/auth'
 
 const router = useRouter()
 const currentUser = computed(() => getCurrentUser())
@@ -12,6 +12,76 @@ const isAdmin = computed(() => isAdminUser())
 const uploadingAvatar = ref(false)
 const avatarPreview = ref(currentUser.value?.avatarUrl || null)
 const fileInput = ref(null)
+
+const reFaceLoading = ref(false)
+const videoRef = ref(null)
+const canvasRef = ref(null)
+const streamRef = ref(null)
+const faceSnapshot = ref('')
+const cameraStarted = ref(false)
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    PxMessage.warning('当前浏览器不支持摄像头调用')
+    return
+  }
+  try {
+    stopCamera()
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    streamRef.value = stream
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream
+      await videoRef.value.play()
+    }
+    cameraStarted.value = true
+  } catch {
+    PxMessage.warning('无法启动摄像头，请检查权限')
+  }
+}
+
+function stopCamera() {
+  if (streamRef.value) {
+    streamRef.value.getTracks().forEach(t => t.stop())
+    streamRef.value = null
+  }
+  cameraStarted.value = false
+}
+
+function captureFace() {
+  if (!videoRef.value || !canvasRef.value) {
+    PxMessage.warning('摄像头尚未准备完成')
+    return
+  }
+  const video = videoRef.value
+  const canvas = canvasRef.value
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  canvas.getContext('2d').drawImage(video, 0, 0)
+  faceSnapshot.value = canvas.toDataURL('image/jpeg', 0.92)
+  stopCamera()
+  PxMessage.success('已捕获人脸画面')
+}
+
+function resetFaceCapture() {
+  faceSnapshot.value = ''
+}
+
+async function handleReRegisterFace() {
+  if (!faceSnapshot.value) {
+    PxMessage.warning('请先拍摄人脸照片')
+    return
+  }
+  reFaceLoading.value = true
+  try {
+    await reRegisterFace({ image: faceSnapshot.value })
+    PxMessage.success('人脸信息更新成功')
+    faceSnapshot.value = ''
+  } catch (err) {
+    PxMessage.error(err.message || '更新失败')
+  } finally {
+    reFaceLoading.value = false
+  }
+}
 
 async function handleAvatarUpload(e) {
   const file = e.target.files?.[0]
@@ -230,12 +300,36 @@ function goBack() {
 
       <px-card stamp class="profile-card">
         <template #prepend>
-          <px-icon icon="settings-solid" size="26" color="#7c4dff" />
+          <px-icon icon="camera-solid" size="26" color="#7c4dff" />
         </template>
         <template #header>
-          <px-text tag="h2" size="16">个性化</px-text>
+          <px-text tag="h2" size="16">人脸信息</px-text>
+          <px-text size="12" type="secondary">如果你的人脸识别失效，可以在此重新录入</px-text>
         </template>
-        <px-text size="12" type="secondary">更多个性化设置即将推出</px-text>
+
+        <div class="face-section">
+          <div v-if="!cameraStarted && !faceSnapshot" class="face-actions">
+            <px-button type="primary" @click="startCamera">开启摄像头</px-button>
+          </div>
+
+          <div v-if="cameraStarted" class="camera-box">
+            <video ref="videoRef" class="face-video" autoplay playsinline muted></video>
+            <div class="camera-actions">
+              <px-button type="primary" @click="captureFace">拍照</px-button>
+              <px-button plain @click="stopCamera">取消</px-button>
+            </div>
+          </div>
+
+          <div v-if="faceSnapshot" class="preview-box">
+            <img :src="faceSnapshot" class="face-preview" alt="captured face" />
+            <div class="preview-actions">
+              <px-button type="primary" :loading="reFaceLoading" @click="handleReRegisterFace">提交更新</px-button>
+              <px-button plain @click="resetFaceCapture">重新拍摄</px-button>
+            </div>
+          </div>
+        </div>
+
+        <canvas ref="canvasRef" style="display:none" />
       </px-card>
     </div>
   </main>
@@ -365,6 +459,49 @@ function goBack() {
   background: rgba(0, 0, 0, 0.4);
   opacity: 0;
   transition: opacity 0.15s;
+}
+
+.face-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.camera-box {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(56, 91, 102, 0.15);
+}
+
+.face-video {
+  width: 100%;
+  display: block;
+}
+
+.camera-actions,
+.preview-actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  justify-content: center;
+}
+
+.preview-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.face-preview {
+  max-width: 240px;
+  border-radius: 12px;
+  border: 2px solid rgba(56, 91, 102, 0.15);
+}
+
+.face-actions {
+  display: flex;
+  gap: 12px;
 }
 
 @media (max-width: 640px) {

@@ -48,6 +48,10 @@ export function loginByFace(payload) {
   return requestJson('/api/auth/login', { method: 'POST', payload })
 }
 
+export function reRegisterFace(payload) {
+  return requestJson('/api/face/re-register', { method: 'POST', payload, token: getAccessToken() })
+}
+
 export function loginByPassword(payload) {
   return requestJson('/api/auth/password-login', { method: 'POST', payload })
 }

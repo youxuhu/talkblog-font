@@ -14,6 +14,8 @@ import AdminUsersView from '../views/AdminUsersView.vue'
 import BlogListView from '../views/BlogListView.vue'
 import BlogDetailView from '../views/BlogDetailView.vue'
 import BlogEditorView from '../views/BlogEditorView.vue'
+import AdminCommentsView from '../views/AdminCommentsView.vue'
+import AdminCommentStatsView from '../views/AdminCommentStatsView.vue'
 
 // 创建路由实例
 const router = createRouter({
@@ -27,6 +29,8 @@ const router = createRouter({
     { path: '/blogs', name: 'blog-list', component: BlogListView },
     { path: '/blog/:id', name: 'blog-detail', component: BlogDetailView },
     { path: '/blog/editor/:id?', name: 'blog-editor', component: BlogEditorView, meta: { requiresAuth: true } },
+    { path: '/admin/comments', name: 'admin-comments', component: AdminCommentsView, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin/comments/stats', name: 'admin-comment-stats', component: AdminCommentStatsView, meta: { requiresAuth: true, requiresAdmin: true } },
   ],
 })
 

@@ -4,10 +4,11 @@
  * 功能：创建新博客、编辑已有博客
  */
 
-import { onMounted, ref, computed, reactive } from 'vue'
+import { onMounted, ref, computed, reactive, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
 import { PxMessage } from '@mmt817/pixel-ui'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -99,6 +100,28 @@ async function handleSubmit() {
 }
 
 // 重置表单
+const contentInputRef = ref(null)
+
+function insertAtCursor(textarea, emoji, target, key) {
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  target[key] = target[key].substring(0, start) + emoji + target[key].substring(end)
+  nextTick(() => {
+    textarea.focus()
+    textarea.selectionStart = textarea.selectionEnd = start + emoji.length
+  })
+}
+
+function onEmojiSelect(emoji) {
+  const textarea = contentInputRef.value?.$el?.querySelector('textarea')
+    ?? contentInputRef.value?.$el?.querySelector('.px-textarea')
+  if (textarea && document.activeElement === textarea) {
+    insertAtCursor(textarea, emoji, form, 'content')
+  } else {
+    form.content += emoji
+  }
+}
+
 function handleReset() {
   if (isEditMode.value) {
     if (blogStore.currentBlog) {
@@ -164,13 +187,17 @@ function handleReset() {
               <template v-else>（已达上限）</template>
             </px-text>
           </div>
-          <px-input
-            v-model="form.content"
-            type="textarea"
-            :rows="20"
-            placeholder="在这里编写你的博客内容..."
-            resize="vertical"
-          />
+          <div class="content-input-wrapper">
+            <px-input
+              ref="contentInputRef"
+              v-model="form.content"
+              type="textarea"
+              :rows="20"
+              placeholder="在这里编写你的博客内容..."
+              resize="vertical"
+            />
+            <EmojiPicker class="content-emoji-btn" @select="onEmojiSelect" />
+          </div>
         </label>
       </div>
     </px-card>
@@ -240,6 +267,17 @@ function handleReset() {
 
 .content-field {
   flex: 1;
+}
+
+.content-input-wrapper {
+  position: relative;
+}
+
+.content-emoji-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
 }
 
 .content-field :deep(.px-textarea) {

@@ -140,6 +140,10 @@ function formatDate(dateStr) {
               </div>
               <!-- 操作按钮 -->
               <div class="blog-actions" @click.stop>
+                <px-button plain size="small" @click="goToDetail(blog.id)">
+                  <px-icon icon="eye-solid" size="12" />
+                  查看
+                </px-button>
                 <px-button plain size="small" @click="goToEditor(blog.id)">编辑</px-button>
                 <px-button plain size="small" type="danger" @click="handleDelete(blog)">删除</px-button>
               </div>

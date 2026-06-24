@@ -37,3 +37,14 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Express chat server (moved to talkblog-back/chat_server/)
+/server/
+
+# wget download log
+wget-log
+
+# OpenCode skill artifacts
+/.opencode/
+/SKILL.md
+/docs/

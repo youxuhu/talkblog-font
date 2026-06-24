@@ -48,10 +48,10 @@ export function createComment(payload) {
   })
 }
 
-export function fetchComments({ blogId, page = 1, size = 10, parentId, status } = {}) {
+export function fetchComments({ blogId, page = 1, size = 10, parentId, status, sort = 'newest' } = {}) {
   return requestJson('/api/comments', {
     method: 'GET',
-    query: { blogId, page, size, parentId, status },
+    query: { blogId, page, size, parentId, status, sort },
   })
 }
 
@@ -114,4 +114,66 @@ export function fetchCommentStats(days = 30) {
     token: getAccessToken(),
     query: { days },
   })
+}
+
+export function updateComment(commentId, content) {
+  return requestJson(`/api/comments/${commentId}`, {
+    method: 'PUT',
+    payload: { content },
+    token: getAccessToken(),
+  })
+}
+
+export function reportComment(commentId, { reason, description }) {
+  return requestJson(`/api/comments/${commentId}/report`, {
+    method: 'POST',
+    payload: { reason, description },
+    token: getAccessToken(),
+  })
+}
+
+export function togglePin(commentId) {
+  return requestJson(`/api/admin/comments/${commentId}/pin`, {
+    method: 'PATCH',
+    token: getAccessToken(),
+  })
+}
+
+export function fetchReports({ page = 1, size = 10, status } = {}) {
+  return requestJson('/api/admin/comments/reports', {
+    method: 'GET',
+    token: getAccessToken(),
+    query: { page, size, status },
+  })
+}
+
+export function handleReport(reportId, status) {
+  return requestJson(`/api/admin/comments/reports/${reportId}`, {
+    method: 'PATCH',
+    payload: { status },
+    token: getAccessToken(),
+  })
+}
+
+export async function uploadCommentImage(file) {
+  const token = getAccessToken()
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(buildUrl('/api/comments/upload'), {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+  if (!response.ok || (data && data.success === false)) {
+    throw new Error(data?.message || '上传失败')
+  }
+  return data
 }

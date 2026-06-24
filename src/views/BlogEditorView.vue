@@ -1,22 +1,20 @@
 <script setup>
 /**
  * 博客编辑页
- * 功能：创建新博客、编辑已有博客
+ * 功能：创建新博客、编辑已有博客，支持专栏选择、分类选择与定时发布
  */
 
 import { onMounted, ref, computed, reactive, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
-import { useCategoryStore } from '@/stores/category'
-import { useTagStore } from '@/stores/tag'
 import { PxMessage } from '@mmt817/pixel-ui'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import { getAllSeries } from '@/services/blog'
+import { CATEGORIES } from '@/config/categories'
 
 const route = useRoute()
 const router = useRouter()
 const blogStore = useBlogStore()
-const categoryStore = useCategoryStore()
-const tagStore = useTagStore()
 
 // 从路由参数获取博客 ID
 const blogId = computed(() => route.params.id)
@@ -30,64 +28,39 @@ const isLoading = ref(false)
 // 保存状态
 const isSaving = ref(false)
 
+// 专栏列表
+const seriesOptions = ref([])
+
+// 是否显示定时发布
+const showSchedule = ref(false)
+
 // 表单数据
 const form = reactive({
   title: '',
   content: '',
-  categoryId: null,
-  tags: [],
+  seriesId: '',
+  category: '',
+  scheduledAt: '',
 })
-
-const tagInput = ref('')
-const showTagSuggestions = ref(false)
-
-function addTag(tag) {
-  if (!form.tags.find(t => t.id === tag.id || t.name === tag.name)) {
-    form.tags.push({ id: tag.id, name: tag.name })
-  }
-  tagInput.value = ''
-  showTagSuggestions.value = false
-}
-
-function removeTag(tag) {
-  form.tags = form.tags.filter(t => t.id !== tag.id && t.name !== tag.name)
-}
-
-function onTagInput() {
-  if (tagInput.value.trim()) {
-    tagStore.search(tagInput.value.trim())
-    showTagSuggestions.value = true
-  } else {
-    showTagSuggestions.value = false
-  }
-}
-
-function selectTagSuggestion(tag) {
-  addTag(tag)
-}
-
-function onTagKeydown(e) {
-  if (e.key === 'Enter') {
-    e.preventDefault()
-    const name = tagInput.value.trim()
-    if (name) {
-      if (tagStore.suggestions.length > 0 && tagInput.value) {
-        selectTagSuggestion(tagStore.suggestions[0])
-      } else {
-        addTag({ id: null, name })
-      }
-    }
-  }
-}
 
 // 计算字数
 const titleLength = computed(() => form.title?.length || 0)
 const contentLength = computed(() => form.content?.length || 0)
 const contentRemaining = computed(() => 10000 - contentLength.value)
 
-// 组件挂载时加载博客数据和分类
+// 加载专栏列表
+async function loadSeries() {
+  try {
+    const result = await getAllSeries()
+    seriesOptions.value = result.data?.list || result.data || []
+  } catch {
+    seriesOptions.value = []
+  }
+}
+
+// 组件挂载时加载博客数据
 onMounted(async () => {
-  categoryStore.fetchCategories()
+  loadSeries()
   if (isEditMode.value) {
     isLoading.value = true
     try {
@@ -95,8 +68,12 @@ onMounted(async () => {
       if (blog) {
         form.title = blog.title || ''
         form.content = blog.content || ''
-        form.categoryId = blog.categoryId || null
-        form.tags = blog.tags || []
+        form.seriesId = blog.seriesId || ''
+        form.category = blog.category || ''
+        if (blog.scheduledAt) {
+          form.scheduledAt = blog.scheduledAt
+          showSchedule.value = true
+        }
       }
     } catch (err) {
       PxMessage.error(err.message || '加载博客失败')
@@ -127,13 +104,19 @@ async function handleSubmit() {
     return
   }
 
+  if (showSchedule.value && !form.scheduledAt) {
+    PxMessage.warning('请选择定时发布时间')
+    return
+  }
+
   isSaving.value = true
   try {
     const payload = {
       title: form.title.trim(),
       content: form.content.trim(),
-      categoryId: form.categoryId,
-      tags: form.tags.map(t => ({ id: t.id, name: t.name })),
+      seriesId: form.seriesId || undefined,
+      category: form.category || undefined,
+      scheduledAt: showSchedule.value ? form.scheduledAt : undefined,
     }
 
     if (isEditMode.value) {
@@ -141,8 +124,13 @@ async function handleSubmit() {
       PxMessage.success('博客更新成功')
       router.push(`/blog/${blogId.value}`)
     } else {
-      await blogStore.createBlog(payload)
-      PxMessage.success('博客发布成功')
+      const result = await blogStore.createBlog(payload)
+      const isScheduled = showSchedule.value && form.scheduledAt
+      if (isScheduled) {
+        PxMessage.success('定时发布已设置')
+      } else {
+        PxMessage.success('博客发布成功')
+      }
       router.push('/blogs')
     }
   } catch (err) {
@@ -180,14 +168,20 @@ function handleReset() {
     if (blogStore.currentBlog) {
       form.title = blogStore.currentBlog.title || ''
       form.content = blogStore.currentBlog.content || ''
-      form.categoryId = blogStore.currentBlog.categoryId || null
-      form.tags = blogStore.currentBlog.tags || []
+      form.seriesId = blogStore.currentBlog.seriesId || ''
+      form.category = blogStore.currentBlog.category || ''
+      if (blogStore.currentBlog.scheduledAt) {
+        form.scheduledAt = blogStore.currentBlog.scheduledAt
+        showSchedule.value = true
+      }
     }
   } else {
     form.title = ''
     form.content = ''
-    form.categoryId = null
-    form.tags = []
+    form.seriesId = ''
+    form.category = ''
+    form.scheduledAt = ''
+    showSchedule.value = false
   }
 }
 </script>
@@ -234,55 +228,69 @@ function handleReset() {
           />
         </label>
 
-        <!-- 分类 -->
+        <!-- 分类选择 -->
         <label class="form-field">
           <div class="field-header">
             <span class="field-label">分类</span>
           </div>
-          <select v-model="form.categoryId" class="category-select">
-            <option :value="null">无分类</option>
-            <option
-              v-for="cat in categoryStore.flatCategories"
-              :key="cat.id"
-              :value="cat.id"
+          <el-select
+            v-model="form.category"
+            placeholder="选择分类（可选）"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="cat in CATEGORIES"
+              :key="cat.value"
+              :value="cat.value"
             >
-              {{ cat.name }}
-            </option>
-          </select>
+              <span style="margin-right: 8px">{{ cat.icon }}</span>
+              <span>{{ cat.label }}</span>
+            </el-option>
+          </el-select>
         </label>
 
-        <!-- 标签 -->
+        <!-- 专栏选择 -->
         <label class="form-field">
           <div class="field-header">
-            <span class="field-label">标签</span>
+            <span class="field-label">所属专栏</span>
           </div>
-          <div class="tag-input-wrapper">
-            <div class="tag-list">
-              <span v-for="tag in form.tags" :key="tag.name" class="tag-chip">
-                {{ tag.name }}
-                <button class="tag-remove" @click="removeTag(tag)">&times;</button>
-              </span>
-              <input
-                v-model="tagInput"
-                class="tag-input-inline"
-                placeholder="输入标签后回车"
-                @input="onTagInput"
-                @keydown="onTagKeydown"
-                @focus="onTagInput"
-                @blur="setTimeout(() => showTagSuggestions = false, 200)"
-              />
-            </div>
-            <div v-if="showTagSuggestions && tagStore.suggestions.length" class="tag-suggestions">
-              <div
-                v-for="tag in tagStore.suggestions"
-                :key="tag.id"
-                class="tag-suggestion-item"
-                @mousedown.prevent="selectTagSuggestion(tag)"
-              >
-                {{ tag.name }}
-              </div>
-            </div>
+          <el-select
+            v-model="form.seriesId"
+            placeholder="选择专栏（可选）"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in seriesOptions"
+              :key="s.id"
+              :value="s.id"
+              :label="s.name"
+            />
+          </el-select>
+        </label>
+
+        <!-- 定时发布 -->
+        <label class="form-field">
+          <div class="field-header">
+            <span class="field-label">定时发布</span>
+            <px-button plain size="small" @click="showSchedule = !showSchedule">
+              {{ showSchedule ? '取消定时' : '设置定时' }}
+            </px-button>
           </div>
+          <template v-if="showSchedule">
+            <el-date-picker
+              v-model="form.scheduledAt"
+              type="datetime"
+              placeholder="选择定时发布时间"
+              :disabled-date="(time) => time.getTime() < Date.now() - 86400000"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              style="width: 100%"
+            />
+            <px-text v-if="form.scheduledAt" size="12" type="secondary">
+              博客将在 {{ new Date(form.scheduledAt).toLocaleString('zh-CN') }} 自动发布
+            </px-text>
+          </template>
         </label>
 
         <!-- 内容字段 -->
@@ -318,11 +326,7 @@ function handleReset() {
   padding: 24px;
   max-width: 900px;
   margin: 0 auto;
-  background:
-    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
-    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
-    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
-    #ebe6e0;
+  background: var(--bg-page);
   box-sizing: border-box;
 }
 
@@ -368,7 +372,7 @@ function handleReset() {
 }
 
 .field-label {
-  color: #385b66;
+  color: var(--color-text-secondary);
   font-size: 14px;
   font-weight: 700;
 }
@@ -386,98 +390,6 @@ function handleReset() {
   bottom: 12px;
   right: 12px;
   z-index: 10;
-}
-
-.category-select {
-  width: 100%;
-  padding: 10px 14px;
-  border: 2px solid rgba(56, 91, 102, 0.18);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #385b66;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.18s;
-}
-
-.category-select:focus {
-  border-color: #7c4dff;
-}
-
-.tag-input-wrapper {
-  position: relative;
-}
-
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px;
-  border: 2px solid rgba(56, 91, 102, 0.18);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  min-height: 42px;
-  align-items: center;
-}
-
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: rgba(124, 77, 255, 0.12);
-  color: #5d3ef0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.tag-remove {
-  border: none;
-  background: none;
-  color: #5d3ef0;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  line-height: 1;
-}
-
-.tag-input-inline {
-  flex: 1;
-  min-width: 120px;
-  border: none;
-  outline: none;
-  padding: 4px;
-  font-size: 13px;
-  background: transparent;
-  color: #385b66;
-}
-
-.tag-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 20;
-  margin-top: 4px;
-  border: 1px solid rgba(56, 91, 102, 0.12);
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.tag-suggestion-item {
-  padding: 10px 14px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #385b66;
-  transition: background 0.12s;
-}
-
-.tag-suggestion-item:hover {
-  background: rgba(124, 77, 255, 0.08);
 }
 
 .content-field :deep(.px-textarea) {

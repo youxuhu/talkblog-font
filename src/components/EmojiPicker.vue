@@ -89,9 +89,9 @@ function close() {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid rgba(56, 91, 102, 0.15);
+  border: 1px solid var(--card-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--input-bg);
   cursor: pointer;
   transition: all 0.15s;
   padding: 0;
@@ -99,19 +99,19 @@ function close() {
 
 .emoji-trigger:hover,
 .emoji-trigger.active {
-  background: rgba(124, 77, 255, 0.08);
-  border-color: rgba(124, 77, 255, 0.3);
+  background: var(--tag-bg);
+  border-color: var(--color-accent);
 }
 
 .emoji-icon {
   width: 18px;
   height: 18px;
-  color: #6b7f87;
+  color: var(--color-text-muted);
 }
 
 .emoji-trigger:hover .emoji-icon,
 .emoji-trigger.active .emoji-icon {
-  color: #7c4dff;
+  color: var(--color-accent);
 }
 
 .emoji-overlay {
@@ -129,21 +129,22 @@ function close() {
   width: 360px;
   max-width: calc(100vw - 32px);
   max-height: 360px;
-  background: #fff;
+  background: var(--card-bg-solid);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  backdrop-filter: blur(16px);
 }
 
 .emoji-panel-header {
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
-  color: #385b66;
-  border-bottom: 1px solid rgba(56, 91, 102, 0.1);
-  background: rgba(247, 244, 239, 0.6);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--card-border);
+  background: var(--input-bg);
 }
 
 .emoji-scroll {
@@ -158,7 +159,7 @@ function close() {
 
 .category-label {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--color-text-light);
   margin-bottom: 6px;
   padding-left: 2px;
 }
@@ -185,7 +186,7 @@ function close() {
 }
 
 .emoji-item:hover {
-  background: rgba(124, 77, 255, 0.1);
+  background: var(--tag-bg);
 }
 
 .emoji-scroll::-webkit-scrollbar {
@@ -193,7 +194,7 @@ function close() {
 }
 
 .emoji-scroll::-webkit-scrollbar-thumb {
-  background: rgba(56, 91, 102, 0.2);
+  background: var(--color-text-light);
   border-radius: 2px;
 }
 

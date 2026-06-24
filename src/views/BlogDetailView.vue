@@ -3,10 +3,15 @@ import { computed, onMounted, reactive, ref, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
 import { ElMessage } from 'element-plus'
-import { createComment, fetchComments } from '@/services/comment'
-import { getCurrentUser, isAuthenticated } from '@/services/auth'
+import { PxMessage } from '@mmt817/pixel-ui'
+import { createComment, fetchComments, uploadCommentImage } from '@/services/comment'
+import { getCurrentUser, isAuthenticated, isAdminUser } from '@/services/auth'
+import * as bookmarkApi from '@/services/bookmark'
+import * as followApi from '@/services/follow'
 import CommentItem from '@/components/CommentItem.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import MentionList from '@/components/MentionList.vue'
+import { getCategoryLabel } from '@/config/categories'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,11 +31,60 @@ const query = reactive({
   size: 10,
 })
 
+const commentSort = ref('newest')
+
 const newComment = reactive({
   content: '',
 })
 
 const commentInputRef = ref(null)
+const commentImageInputRef = ref(null)
+const commentImages = ref([])
+const uploadingImage = ref(false)
+
+function handleCommentImageSelect(e) {
+  const files = e.target.files
+  if (!files?.length) return
+  for (const file of files) {
+    uploadSingleCommentImage(file)
+  }
+  e.target.value = ''
+}
+
+async function uploadSingleCommentImage(file) {
+  if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+    ElMessage.warning('仅支持 JPG/PNG/GIF/WebP 格式')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('图片大小不能超过 5MB')
+    return
+  }
+  uploadingImage.value = true
+  try {
+    const res = await uploadCommentImage(file)
+    const url = res?.data?.url || res?.data || ''
+    if (url) {
+      commentImages.value.push(url)
+    }
+  } catch (err) {
+    ElMessage.error(err.message || '图片上传失败')
+  } finally {
+    uploadingImage.value = false
+  }
+}
+
+function removeCommentImage(index) {
+  commentImages.value.splice(index, 1)
+}
+
+const previewImageUrl = ref('')
+const showImagePreview = ref(false)
+
+function previewImage(url) {
+  previewImageUrl.value = url
+  showImagePreview.value = true
+}
 
 function onCommentEmoji(emoji) {
   const textarea = commentInputRef.value?.textarea
@@ -47,13 +101,75 @@ function onCommentEmoji(emoji) {
   }
 }
 
+function onInsertMention(username) {
+  const textarea = commentInputRef.value?.textarea
+  const mention = `@${username} `
+  if (textarea && document.activeElement === textarea) {
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    newComment.content = newComment.content.substring(0, start) + mention + newComment.content.substring(end)
+    nextTick(() => {
+      textarea.focus()
+      textarea.selectionStart = textarea.selectionEnd = start + mention.length
+    })
+  } else {
+    newComment.content += mention
+  }
+}
+
 const currentUser = computed(() => getCurrentUser())
 const loggedIn = computed(() => isAuthenticated())
+const isOwner = computed(() => currentUser.value?.userId === blog.value?.authorId)
+
+const isBookmarked = ref(false)
+const isFollowing = ref(false)
+
+async function checkBookmarkStatus() {
+  if (!loggedIn.value) return
+  try {
+    const res = await bookmarkApi.getBookmarkStatus(blogId.value)
+    isBookmarked.value = res.data?.bookmarked || false
+  } catch { /* ignore */ }
+}
+
+async function checkFollowStatus() {
+  if (!loggedIn.value || !blog.value?.authorId) return
+  try {
+    const res = await followApi.getFollowStatus(blog.value.authorId)
+    isFollowing.value = res.data?.following || false
+  } catch { /* ignore */ }
+}
+
+async function handleBookmark() {
+  if (!loggedIn.value) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  try {
+    const res = await bookmarkApi.toggleBookmark(blogId.value)
+    isBookmarked.value = res.data?.bookmarked || false
+    PxMessage.success(isBookmarked.value ? '已收藏' : '已取消收藏')
+  } catch (err) {
+    PxMessage.error(err.message || '操作失败')
+  }
+}
+
+async function handleFollow() {
+  if (!loggedIn.value || !blog.value?.authorId) return
+  try {
+    const res = await followApi.toggleFollow(blog.value.authorId)
+    isFollowing.value = res.data?.following || false
+    PxMessage.success(isFollowing.value ? '已关注' : '已取消关注')
+  } catch (err) {
+    PxMessage.error(err.message || '操作失败')
+  }
+}
 
 onMounted(() => {
   if (blogId.value) {
     blogStore.fetchBlogDetail(blogId.value)
     loadComments()
+    checkBookmarkStatus()
   }
 })
 
@@ -84,6 +200,7 @@ async function loadComments() {
       blogId: Number(blogId.value),
       page: query.page,
       size: query.size,
+      sort: commentSort.value,
     })
     comments.value = result?.data?.list || []
     total.value = result?.data?.total || 0
@@ -113,14 +230,19 @@ async function submitComment() {
 
   submitting.value = true
   try {
+    let finalContent = newComment.content.trim()
+    if (commentImages.value.length) {
+      finalContent += commentImages.value.map(url => `<br><img src="${url}" class="comment-uploaded-image" />`).join('')
+    }
     await createComment({
       blogId: Number(blogId.value),
-      content: newComment.content.trim(),
+      content: finalContent,
       parentId: null,
     })
 
     ElMessage.success('评论发表成功，等待审核')
     newComment.content = ''
+    commentImages.value = []
     query.page = 1
     await loadComments()
   } catch (error) {
@@ -153,6 +275,12 @@ function handlePageChange(page) {
   query.page = page
   loadComments()
 }
+
+function handleSortChange(sort) {
+  commentSort.value = sort
+  query.page = 1
+  loadComments()
+}
 </script>
 
 <template>
@@ -165,7 +293,13 @@ function handlePageChange(page) {
         返回列表
       </px-button>
       <div class="header-actions">
-        <px-button type="primary" @click="goToEditor">
+        <px-button v-if="isOwner" plain size="small" @click="router.push(`/blog/${blogId}/versions`)">
+          <template #prepend>
+            <px-icon icon="history-solid" size="14" />
+          </template>
+          版本历史
+        </px-button>
+        <px-button v-if="isOwner" type="primary" @click="goToEditor">
           <template #prepend>
             <px-icon icon="edit-solid" size="16" />
           </template>
@@ -181,16 +315,44 @@ function handlePageChange(page) {
           <div class="blog-meta">
             <px-icon icon="user-solid" size="14" color="#6b7f87" />
             <px-text size="12" type="secondary">{{ blog.authorName || '匿名' }}</px-text>
+            <template v-if="!isOwner && loggedIn">
+              <px-button
+                plain
+                size="small"
+                :type="isFollowing ? 'default' : 'primary'"
+                @click.stop="handleFollow"
+              >
+                {{ isFollowing ? '已关注' : '+ 关注' }}
+              </px-button>
+            </template>
             <px-icon icon="clock-regular" size="14" color="#6b7f87" />
             <px-text size="12" type="secondary">{{ formatDate(blog.createdAt) }}</px-text>
             <template v-if="blog.updatedAt">
               <px-icon icon="edit-regular" size="14" color="#6b7f87" />
               <px-text size="12" type="secondary">更新于 {{ formatDate(blog.updatedAt) }}</px-text>
             </template>
+            <template v-if="blog.category">
+              <span class="category-tag-detail">{{ getCategoryLabel(blog.category) }}</span>
+            </template>
+            <template v-if="blog.seriesName">
+              <px-icon icon="folder-open-solid" size="14" color="#6b7f87" />
+              <router-link :to="`/series/${blog.seriesId}`" class="series-link">
+                <px-text size="12" type="secondary">{{ blog.seriesName }}</px-text>
+              </router-link>
+            </template>
+            <px-icon icon="eye-solid" size="14" color="#6b7f87" />
+            <px-text size="12" type="secondary">{{ blog.viewCount ?? 0 }} 次阅读</px-text>
           </div>
-          <div v-if="blog.categoryName" class="blog-category-tags">
-            <span class="category-badge">{{ blog.categoryName }}</span>
-            <span v-for="tag in blog.tags || []" :key="tag.id" class="tag-badge">{{ tag.name }}</span>
+          <div class="blog-actions-bar">
+            <px-button
+              plain
+              size="small"
+              :type="isBookmarked ? 'primary' : 'default'"
+              @click="handleBookmark"
+            >
+              <px-icon :icon="isBookmarked ? 'star-solid' : 'star-regular'" size="14" />
+              {{ isBookmarked ? '已收藏' : '收藏' }}
+            </px-button>
           </div>
         </div>
       </template>
@@ -208,8 +370,24 @@ function handlePageChange(page) {
 
     <section v-if="blog" class="comment-section">
       <div class="comment-section-header">
-        <px-text tag="h2" size="18">评论</px-text>
-        <px-text size="13" type="secondary">共 {{ total }} 条评论</px-text>
+        <div class="comment-section-title">
+          <px-text tag="h2" size="18">评论</px-text>
+          <px-text size="13" type="secondary">共 {{ total }} 条评论</px-text>
+        </div>
+        <div class="comment-sort-tabs">
+          <button
+            :class="['sort-tab', { active: commentSort === 'newest' }]"
+            @click="handleSortChange('newest')"
+          >最新</button>
+          <button
+            :class="['sort-tab', { active: commentSort === 'oldest' }]"
+            @click="handleSortChange('oldest')"
+          >最早</button>
+          <button
+            :class="['sort-tab', { active: commentSort === 'hot' }]"
+            @click="handleSortChange('hot')"
+          >最热</button>
+        </div>
       </div>
 
       <div v-if="loggedIn" class="comment-input-section">
@@ -224,7 +402,33 @@ function handlePageChange(page) {
             show-word-limit
             :disabled="submitting"
           />
-          <EmojiPicker class="comment-emoji-btn" @select="onCommentEmoji" />
+          <div class="comment-input-tools">
+            <EmojiPicker @select="onCommentEmoji" />
+            <MentionList @select="onInsertMention" />
+            <px-button
+              plain
+              size="small"
+              :loading="uploadingImage"
+              :disabled="uploadingImage"
+              @click="commentImageInputRef?.click()"
+            >
+              <px-icon icon="camera-solid" size="16" />
+            </px-button>
+            <input
+              ref="commentImageInputRef"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
+              style="display:none"
+              @change="handleCommentImageSelect"
+            />
+          </div>
+        </div>
+        <div v-if="commentImages.length" class="comment-image-previews">
+          <div v-for="(url, index) in commentImages" :key="index" class="comment-image-preview-item">
+            <img :src="url" class="comment-image-thumb" @click="previewImage(url)" />
+            <span class="comment-image-remove" @click="removeCommentImage(index)">&times;</span>
+          </div>
         </div>
         <div class="input-actions">
           <px-button
@@ -276,6 +480,9 @@ function handlePageChange(page) {
         </div>
       </div>
     </section>
+    <el-dialog v-model="showImagePreview" width="auto" append-to-body top="5vh" :show-close="true">
+      <img :src="previewImageUrl" style="max-width: 80vw; max-height: 80vh; display: block; border-radius: 8px;" />
+    </el-dialog>
   </main>
 </template>
 
@@ -285,11 +492,7 @@ function handlePageChange(page) {
   padding: 24px;
   max-width: 900px;
   margin: 0 auto;
-  background:
-    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
-    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
-    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
-    #ebe6e0;
+  background: var(--bg-page);
   box-sizing: border-box;
 }
 
@@ -324,36 +527,36 @@ function handlePageChange(page) {
   flex-wrap: wrap;
 }
 
-.blog-category-tags {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.category-badge {
+.category-tag-detail {
   display: inline-block;
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: rgba(124, 77, 255, 0.1);
-  color: #5d3ef0;
-  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 600;
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  line-height: 1.6;
 }
 
-.tag-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: rgba(56, 91, 102, 0.08);
-  color: #385b66;
-  font-size: 12px;
-  font-weight: 500;
+.series-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.series-link:hover {
+  color: var(--color-accent);
+}
+
+.blog-actions-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
 }
 
 .blog-content {
-  color: #385b66;
+  color: var(--color-text-secondary);
   line-height: 1.9;
   font-size: 16px;
   white-space: pre-wrap;
@@ -374,11 +577,46 @@ function handlePageChange(page) {
 
 .comment-section-header {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
   gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(56, 91, 102, 0.12);
+  border-bottom: 1px solid var(--card-border);
+  flex-wrap: wrap;
+}
+
+.comment-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.comment-sort-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.sort-tab {
+  padding: 4px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sort-tab:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.sort-tab.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
 }
 
 .comment-input-section {
@@ -389,11 +627,14 @@ function handlePageChange(page) {
   position: relative;
 }
 
-.comment-emoji-btn {
+.comment-input-tools {
   position: absolute;
   bottom: 8px;
   right: 8px;
   z-index: 10;
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .input-actions {
@@ -428,6 +669,47 @@ function handlePageChange(page) {
   display: flex;
   justify-content: center;
   padding: 24px 0;
+}
+
+.comment-image-previews {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.comment-image-preview-item {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+}
+
+.comment-image-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comment-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
 @media (max-width: 640px) {

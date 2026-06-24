@@ -85,6 +85,45 @@ export function getAuthState() {
   }
 }
 
+export function updateProfile(payload) {
+  return requestJson('/api/user/profile', {
+    method: 'PUT',
+    token: getAccessToken(),
+    payload,
+  })
+}
+
+export async function uploadAvatar(file) {
+  const token = getAccessToken()
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(buildUrl('/api/user/avatar'), {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+  if (!response.ok || (data && data.success === false)) {
+    throw new Error(data?.message || '上传失败')
+  }
+  return data
+}
+
+export function changePassword(payload) {
+  return requestJson('/api/user/password', {
+    method: 'PUT',
+    token: getAccessToken(),
+    payload,
+  })
+}
+
 export function clearAuthState() {
   sessionStorage.removeItem(AUTH_STORAGE_KEY)
 }

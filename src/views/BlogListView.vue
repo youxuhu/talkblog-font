@@ -1,44 +1,77 @@
 <script setup>
 /**
  * 博客列表页
- * 功能：展示所有已发布博客，支持搜索、删除，返回首页
+ * 仿知乎分类导航，支持分类筛选、关键词搜索、专栏筛选
  */
 
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
-import { useCategoryStore } from '@/stores/category'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { PxMessage } from '@mmt817/pixel-ui'
+import { getCurrentUser, isAdminUser } from '@/services/auth'
+import { getAllSeries } from '@/services/blog'
+import { CATEGORIES, getCategoryLabel } from '@/config/categories'
 
 const router = useRouter()
 const blogStore = useBlogStore()
-const categoryStore = useCategoryStore()
+const currentUser = computed(() => getCurrentUser())
+const isAdmin = computed(() => isAdminUser())
+
+function canEdit(blog) {
+  return currentUser.value && currentUser.value.userId === blog.userId
+}
+
+function canDelete(blog) {
+  return canEdit(blog) || isAdmin.value
+}
 
 // 搜索关键词
 const searchKeyword = ref('')
-const selectedCategoryId = ref(null)
+
+// 专栏筛选
+const seriesOptions = ref([])
+const selectedSeriesId = ref('')
+
+// 当前选中的分类
+const activeCategory = ref(blogStore.selectedCategory || '')
+
+// 加载专栏列表
+async function loadSeries() {
+  try {
+    const result = await getAllSeries()
+    seriesOptions.value = result.data?.list || result.data || []
+  } catch {
+    seriesOptions.value = []
+  }
+}
 
 // 加载更多博客
 function loadMore() {
   const nextPage = blogStore.currentPage + 1
-  blogStore.fetchBlogs({ page: nextPage, keyword: searchKeyword.value, categoryId: selectedCategoryId.value })
+  blogStore.fetchBlogs({ page: nextPage, keyword: searchKeyword.value, seriesId: selectedSeriesId.value, category: activeCategory.value })
 }
 
-// 组件挂载时获取博客列表和分类
+// 组件挂载时获取博客列表
 onMounted(() => {
-  categoryStore.fetchCategories()
-  blogStore.fetchBlogs({ page: 1, keyword: '' })
+  blogStore.fetchBlogs({ page: 1, keyword: '', category: activeCategory.value })
+  loadSeries()
 })
+
+// 分类切换
+function handleCategoryChange(category) {
+  activeCategory.value = category
+  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, seriesId: selectedSeriesId.value, category })
+}
 
 // 搜索博客
 function handleSearch() {
-  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, categoryId: selectedCategoryId.value })
+  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, seriesId: selectedSeriesId.value, category: activeCategory.value })
 }
 
-// 按分类筛选
-function selectCategory(categoryId) {
-  selectedCategoryId.value = selectedCategoryId.value === categoryId ? null : categoryId
-  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, categoryId: selectedCategoryId.value })
+// 专栏筛选变化
+function handleSeriesChange() {
+  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, seriesId: selectedSeriesId.value, category: activeCategory.value })
 }
 
 // 跳转到博客详情页
@@ -57,16 +90,42 @@ function goHome() {
 }
 
 // 删除博客
-function handleDelete(blog) {
-  if (!confirm(`确定要删除博客「${blog.title}」吗？`)) {
-    return
+async function handleDelete(blog) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除博客「${blog.title}」吗？删除后无法恢复。`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+    blogStore.deleteBlog(blog.id).then(() => {
+      PxMessage.success('删除成功')
+    }).catch((err) => {
+      PxMessage.error(err.message || '删除失败')
+    })
+  } catch {
+    // 用户取消
   }
-  blogStore.deleteBlog(blog.id).then(() => {
-    PxMessage.success('删除成功')
-  }).catch((err) => {
-    PxMessage.error(err.message || '删除失败')
-  })
 }
+
+const expandedBlogs = reactive(new Set())
+
+function toggleExpand(blogId) {
+  if (expandedBlogs.has(blogId)) {
+    expandedBlogs.delete(blogId)
+  } else {
+    expandedBlogs.add(blogId)
+  }
+}
+
+function isExpanded(blogId) {
+  return expandedBlogs.has(blogId)
+}
+
+const PREVIEW_LENGTH = 200
 
 // 格式化日期
 function formatDate(dateStr) {
@@ -104,80 +163,115 @@ function formatDate(dateStr) {
       </px-button>
     </section>
 
-    <!-- 搜索栏 -->
+    <!-- 仿知乎分类导航栏 -->
+    <section class="category-nav">
+      <button
+        v-for="cat in CATEGORIES"
+        :key="cat.value"
+        :class="['category-tab', { active: activeCategory === cat.value }]"
+        @click="handleCategoryChange(cat.value)"
+      >
+        <span class="category-icon">{{ cat.icon }}</span>
+        <span class="category-label">{{ cat.label }}</span>
+      </button>
+    </section>
+
+    <!-- 搜索栏与筛选 -->
     <section class="search-bar">
-      <px-input
-        v-model="searchKeyword"
-        placeholder="搜索博客标题..."
-        clearable
-        @keyup.enter="handleSearch"
-      >
-        <template #append>
-          <px-button type="primary" @click="handleSearch">搜索</px-button>
-        </template>
-      </px-input>
+      <div class="search-row">
+        <px-input
+          v-model="searchKeyword"
+          placeholder="搜索博客标题..."
+          clearable
+          @keyup.enter="handleSearch"
+        >
+          <template #append>
+            <px-button type="primary" @click="handleSearch">搜索</px-button>
+          </template>
+        </px-input>
+        <el-select
+          v-model="selectedSeriesId"
+          placeholder="全部专栏"
+          clearable
+          style="min-width: 140px"
+          @change="handleSeriesChange"
+        >
+          <el-option
+            v-for="s in seriesOptions"
+            :key="s.id"
+            :value="s.id"
+            :label="s.name"
+          />
+        </el-select>
+      </div>
     </section>
 
-    <!-- 分类筛选 -->
-    <section v-if="categoryStore.categories.length" class="category-filter">
-      <button
-        class="category-tag"
-        :class="{ active: selectedCategoryId === null }"
-        @click="selectCategory(null)"
-      >
-        全部
-      </button>
-      <button
-        v-for="cat in categoryStore.flatCategories"
-        :key="cat.id"
-        class="category-tag"
-        :class="{ active: selectedCategoryId === cat.id }"
-        @click="selectCategory(cat.id)"
-      >
-        {{ cat.name }}
-      </button>
-    </section>
-
-    <!-- 博客卡片网格 -->
-    <section class="blog-grid" v-loading="blogStore.loading">
+    <!-- 博客列表（纵向排列） -->
+    <section class="blog-list" v-loading="blogStore.loading">
       <!-- 有博客时显示卡片列表 -->
       <template v-if="blogStore.blogs.length > 0">
         <px-card
           v-for="blog in blogStore.blogs"
           :key="blog.id"
-          hoverable
           class="blog-card"
-          @click="goToDetail(blog.id)"
         >
           <template #header>
-            <div class="blog-card-header">
-              <px-text tag="h3" size="16">{{ blog.title }}</px-text>
-              <px-text size="12" type="secondary">{{ formatDate(blog.createdAt) }}</px-text>
-            </div>
-          </template>
-
-          <!-- 博客内容摘要 -->
-          <div class="blog-excerpt">
-            {{ blog.content?.substring(0, 120) || '暂无内容...' }}{{ (blog.content?.length || 0) > 120 ? '...' : '' }}
-          </div>
-
-          <template #footer>
-            <!-- 作者信息 -->
-            <div class="blog-card-footer">
+            <div class="blog-card-header" @click="goToDetail(blog.id)">
+              <div class="blog-title-row">
+                <px-text tag="h3" size="18">{{ blog.title }}</px-text>
+                <span v-if="blog.category" class="category-tag">{{ getCategoryLabel(blog.category) }}</span>
+              </div>
               <div class="blog-meta">
                 <px-icon icon="user-solid" size="14" color="#6b7f87" />
                 <px-text size="12" type="secondary">{{ blog.authorName || '匿名' }}</px-text>
-                <span v-if="blog.categoryName" class="card-category-badge">{{ blog.categoryName }}</span>
+                <px-icon icon="clock-regular" size="14" color="#6b7f87" />
+                <px-text size="12" type="secondary">{{ formatDate(blog.createdAt) }}</px-text>
+                <template v-if="blog.seriesName">
+                  <px-icon icon="folder-open-solid" size="14" color="#6b7f87" />
+                  <px-text size="12" type="secondary">{{ blog.seriesName }}</px-text>
+                </template>
+                <px-icon icon="eye-solid" size="14" color="#6b7f87" />
+                <px-text size="12" type="secondary">{{ blog.viewCount ?? 0 }} 阅读</px-text>
+                <span v-if="blog.status === 'SCHEDULED'" class="status-tag scheduled">定时</span>
+                <span v-if="blog.status === 'DRAFT'" class="status-tag draft">草稿</span>
               </div>
-              <!-- 操作按钮 -->
+            </div>
+          </template>
+
+          <!-- 博客内容：预览或全文 -->
+          <div class="blog-content">
+            <template v-if="isExpanded(blog.id) || !blog.content || blog.content.length <= PREVIEW_LENGTH">
+              {{ blog.content || '暂无内容...' }}
+            </template>
+            <template v-else>
+              {{ blog.content.substring(0, PREVIEW_LENGTH) }}...
+            </template>
+          </div>
+
+          <template #footer>
+            <div class="blog-card-footer">
               <div class="blog-actions" @click.stop>
                 <px-button plain size="small" @click="goToDetail(blog.id)">
                   <px-icon icon="eye-solid" size="12" />
                   查看
                 </px-button>
-                <px-button plain size="small" @click="goToEditor(blog.id)">编辑</px-button>
-                <px-button plain size="small" type="danger" @click="handleDelete(blog)">删除</px-button>
+                <px-button v-if="canEdit(blog)" plain size="small" @click="goToEditor(blog.id)">
+                  <px-icon icon="edit-solid" size="12" />
+                  编辑
+                </px-button>
+                <px-button v-if="canDelete(blog)" plain size="small" type="danger" @click="handleDelete(blog)">
+                  <px-icon icon="trash-solid" size="12" />
+                  删除
+                </px-button>
               </div>
+              <button
+                v-if="blog.content && blog.content.length > PREVIEW_LENGTH"
+                class="expand-btn"
+                @click.stop="toggleExpand(blog.id)"
+              >
+                {{ isExpanded(blog.id) ? '收起' : '展开全文' }}
+                <span :class="['arrow', { up: isExpanded(blog.id) }]">▾</span>
+              </button>
             </div>
           </template>
         </px-card>
@@ -215,11 +309,7 @@ function formatDate(dateStr) {
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
-  background:
-    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
-    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
-    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
-    #ebe6e0;
+  background: var(--bg-page);
   box-sizing: border-box;
 }
 
@@ -227,7 +317,7 @@ function formatDate(dateStr) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .header-left {
@@ -242,6 +332,50 @@ function formatDate(dateStr) {
   gap: 6px;
 }
 
+/* 仿知乎分类导航 */
+.category-nav {
+  display: flex;
+  gap: 4px;
+  padding: 8px 0 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.category-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.category-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.category-tab:hover {
+  background: var(--tag-bg);
+  color: var(--color-text);
+}
+
+.category-tab.active {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.category-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
 .search-bar {
   margin-bottom: 24px;
 }
@@ -250,35 +384,81 @@ function formatDate(dateStr) {
   max-width: 480px;
 }
 
-.blog-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+.blog-list {
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .blog-card {
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 
 .blog-card:hover {
-  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .blog-card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  cursor: pointer;
 }
 
-.blog-excerpt {
-  color: #385b66;
-  line-height: 1.7;
-  font-size: 14px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.blog-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.blog-title-row:hover h3 {
+  color: var(--color-accent);
+}
+
+.category-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  line-height: 1.6;
+}
+
+.blog-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.status-tag.scheduled {
+  background: rgba(237, 137, 54, 0.15);
+  color: #ed8936;
+}
+
+.status-tag.draft {
+  background: rgba(160, 174, 192, 0.2);
+  color: var(--color-text-muted);
+}
+
+.blog-content {
+  color: var(--color-text-secondary);
+  line-height: 1.8;
+  font-size: 15px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .blog-card-footer {
@@ -287,58 +467,40 @@ function formatDate(dateStr) {
   align-items: center;
 }
 
-.blog-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .blog-actions {
   display: flex;
   gap: 8px;
 }
 
-.card-category-badge {
-  padding: 1px 8px;
-  border-radius: 4px;
-  background: rgba(124, 77, 255, 0.08);
-  color: #5d3ef0;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.category-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.category-tag {
-  padding: 6px 14px;
-  border: 2px solid rgba(56, 91, 102, 0.15);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.68);
-  color: #385b66;
+.expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  color: var(--color-accent);
   font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
 }
 
-.category-tag:hover {
-  border-color: rgba(124, 77, 255, 0.3);
-  background: rgba(124, 77, 255, 0.06);
+.expand-btn:hover {
+  background: var(--tag-bg);
 }
 
-.category-tag.active {
-  border-color: #7c4dff;
-  background: rgba(124, 77, 255, 0.12);
-  color: #5d3ef0;
+.arrow {
+  display: inline-block;
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+
+.arrow.up {
+  transform: rotate(180deg);
 }
 
 .empty-state {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -347,7 +509,6 @@ function formatDate(dateStr) {
 }
 
 .pagination {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -372,8 +533,8 @@ function formatDate(dateStr) {
     gap: 12px;
   }
 
-  .blog-grid {
-    grid-template-columns: 1fr;
+  .blog-list {
+    gap: 16px;
   }
 }
 </style>

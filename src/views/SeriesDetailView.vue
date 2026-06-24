@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSeriesStore } from '@/stores/series'
 import { isAuthenticated, getCurrentUser, isAdminUser } from '@/services/auth'
+import { PxMessage } from '@mmt817/pixel-ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,7 @@ const seriesId = computed(() => route.params.id)
 const series = computed(() => seriesStore.currentSeries)
 const currentUser = computed(() => getCurrentUser())
 const loggedIn = ref(isAuthenticated())
+const deleting = ref(false)
 
 onMounted(async () => {
   if (seriesId.value) {
@@ -35,7 +37,29 @@ function goToEditor() {
 function canEdit() {
   const s = series.value
   if (!s) return false
-  return currentUser.value && currentUser.value.userId === s.userId
+  return currentUser.value && currentUser.value.userId === s.authorId
+}
+
+function canDelete() {
+  const s = series.value
+  if (!s) return false
+  if (isAdminUser()) return true
+  return currentUser.value && currentUser.value.userId === s.authorId
+}
+
+async function handleDelete() {
+  if (!confirm(`确定要删除专栏「${series.value?.name}」吗？此操作不可撤销。`)) return
+
+  deleting.value = true
+  try {
+    await seriesStore.deleteSeries(seriesId.value)
+    PxMessage.success('专栏已删除')
+    router.push('/series')
+  } catch (err) {
+    PxMessage.error(err.message || '删除失败，请稍后重试')
+  } finally {
+    deleting.value = false
+  }
 }
 
 function formatDate(dateStr) {
@@ -58,12 +82,20 @@ function formatDate(dateStr) {
         </template>
         返回专栏
       </px-button>
-      <px-button v-if="canEdit()" type="primary" @click="goToEditor">
-        <template #prepend>
-          <px-icon icon="edit-solid" size="16" />
-        </template>
-        编辑专栏
-      </px-button>
+      <div class="header-actions">
+        <px-button v-if="canEdit()" type="primary" @click="goToEditor">
+          <template #prepend>
+            <px-icon icon="edit-solid" size="16" />
+          </template>
+          编辑专栏
+        </px-button>
+        <px-button v-if="canDelete()" type="danger" :loading="deleting" @click="handleDelete">
+          <template #prepend>
+            <px-icon icon="trash-solid" size="16" />
+          </template>
+          删除专栏
+        </px-button>
+      </div>
     </section>
 
     <px-card v-if="series" class="series-info-card" v-loading="seriesStore.loading">
@@ -129,7 +161,11 @@ function formatDate(dateStr) {
   padding: 24px;
   max-width: 900px;
   margin: 0 auto;
-  background: var(--bg-page);
+  background:
+    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
+    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
+    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
+    #ebe6e0;
   box-sizing: border-box;
 }
 
@@ -138,6 +174,11 @@ function formatDate(dateStr) {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .series-info-card {
@@ -151,7 +192,7 @@ function formatDate(dateStr) {
 }
 
 .series-description {
-  color: var(--color-text-secondary);
+  color: #385b66;
   line-height: 1.8;
   font-size: 15px;
   white-space: pre-wrap;
@@ -163,7 +204,7 @@ function formatDate(dateStr) {
   gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--card-border);
+  border-bottom: 1px solid rgba(56, 91, 102, 0.12);
 }
 
 .blog-list {
@@ -182,7 +223,7 @@ function formatDate(dateStr) {
 }
 
 .blog-card-header h3:hover {
-  color: var(--color-accent);
+  color: #5d3ef0;
 }
 
 .blog-meta {

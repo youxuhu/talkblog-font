@@ -103,7 +103,11 @@ function formatDate(dateStr) {
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
-  background: var(--bg-page);
+  background:
+    linear-gradient(180deg, rgba(247, 244, 239, 0.82), rgba(224, 235, 247, 0.82)),
+    radial-gradient(circle at top left, #f9d8d6 0, transparent 28%),
+    radial-gradient(circle at bottom right, #c7f0d8 0, transparent 24%),
+    #ebe6e0;
   box-sizing: border-box;
 }
 
@@ -149,7 +153,7 @@ function formatDate(dateStr) {
 }
 
 .series-description {
-  color: var(--color-text-secondary);
+  color: #385b66;
   font-size: 14px;
   line-height: 1.7;
   display: -webkit-box;

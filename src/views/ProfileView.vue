@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { PxMessage } from '@mmt817/pixel-ui'
 import { ElMessage } from 'element-plus'
@@ -25,16 +25,21 @@ async function startCamera() {
     PxMessage.warning('当前浏览器不支持摄像头调用')
     return
   }
+  if (streamRef.value) {
+    streamRef.value.getTracks().forEach(t => t.stop())
+    streamRef.value = null
+  }
+  faceSnapshot.value = ''
+  cameraStarted.value = true
+  await nextTick()
   try {
-    stopCamera()
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
     streamRef.value = stream
     if (videoRef.value) {
       videoRef.value.srcObject = stream
-      await videoRef.value.play()
     }
-    cameraStarted.value = true
   } catch {
+    cameraStarted.value = false
     PxMessage.warning('无法启动摄像头，请检查权限')
   }
 }
@@ -45,6 +50,7 @@ function stopCamera() {
     streamRef.value = null
   }
   cameraStarted.value = false
+  faceSnapshot.value = ''
 }
 
 function captureFace() {
@@ -58,7 +64,11 @@ function captureFace() {
   canvas.height = video.videoHeight
   canvas.getContext('2d').drawImage(video, 0, 0)
   faceSnapshot.value = canvas.toDataURL('image/jpeg', 0.92)
-  stopCamera()
+  if (streamRef.value) {
+    streamRef.value.getTracks().forEach(t => t.stop())
+    streamRef.value = null
+  }
+  cameraStarted.value = false
   PxMessage.success('已捕获人脸画面')
 }
 
@@ -468,17 +478,28 @@ function goBack() {
 }
 
 .camera-box {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 2px solid rgba(56, 91, 102, 0.15);
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
 }
 
 .face-video {
-  width: 100%;
+  width: 280px;
+  aspect-ratio: 4 / 3;
   display: block;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid rgba(56, 91, 102, 0.15);
+  background: #000;
 }
 
-.camera-actions,
+.camera-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
 .preview-actions {
   display: flex;
   gap: 12px;

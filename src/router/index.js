@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { isAdminUser, isAuthenticated } from '@/services/auth'
+import PortalView from '../views/PortalView.vue'
 import HomeView from '../views/HomeView.vue'
 import WelcomeView from '../views/WelcomeView.vue'
 import ProfileView from '../views/ProfileView.vue'
@@ -26,6 +27,12 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
+      component: PortalView,
+      meta: { depth: 0 },
+    },
+    {
+      path: '/login',
+      name: 'login',
       component: HomeView,
       meta: { depth: 0 },
     },
@@ -190,7 +197,7 @@ router.beforeEach((to) => {
     return '/welcome'
   }
 
-  if (to.path === '/' && isAuthenticated()) {
+  if ((to.path === '/' || to.path === '/login') && isAuthenticated()) {
     return '/welcome'
   }
 

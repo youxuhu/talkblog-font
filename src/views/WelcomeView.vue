@@ -15,12 +15,20 @@ function goBlog() {
   router.push('/blogs')
 }
 
+function goChat() {
+  router.push('/chat')
+}
+
 function goAdmin() {
   router.push('/admin/users')
 }
 
 function goAdminComments() {
   router.push('/admin/comments')
+}
+
+function goAdminChat() {
+  router.push('/admin/chat')
 }
 
 function handleLogout() {
@@ -64,6 +72,7 @@ function handleLogout() {
 
         <div class="session-tip">
           管理员可以进入用户管理页查看分页列表、搜索用户并切换账户状态。
+          登录用户可以进入聊天室与他人交流。
         </div>
 
         <div class="module-grid">
@@ -83,6 +92,8 @@ function handleLogout() {
           <px-button type="primary" @click="goHome">返回首页</px-button>
           <px-button plain @click="goBlog">博客管理</px-button>
           <px-button v-if="canEnterAdmin" plain @click="goAdmin">用户管理</px-button>
+          <px-button v-if="canEnterAdmin" plain @click="goAdminChat">聊天室管理</px-button>
+          <px-button type="primary" plain @click="goChat">聊天室</px-button>
           <px-button plain @click="handleLogout">退出登录</px-button>
         </div>
       </template>

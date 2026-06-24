@@ -22,10 +22,10 @@ export const useBlogStore = defineStore('blog', () => {
 
   // 获取博客列表
   async function fetchBlogs(options = {}) {
-    const { page = 1, size = 10, keyword: kw = '' } = options
+    const { page = 1, size = 10, keyword: kw = '', categoryId } = options
     loading.value = true
     try {
-      const result = await blogApi.getBlogList({ page, size, keyword: kw })
+      const result = await blogApi.getBlogList({ page, size, keyword: kw, categoryId })
       if (page === 1) {
         blogs.value = result.data?.list || []
       } else {

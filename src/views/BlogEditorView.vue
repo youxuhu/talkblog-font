@@ -7,12 +7,16 @@
 import { onMounted, ref, computed, reactive, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
+import { useCategoryStore } from '@/stores/category'
+import { useTagStore } from '@/stores/tag'
 import { PxMessage } from '@mmt817/pixel-ui'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const route = useRoute()
 const router = useRouter()
 const blogStore = useBlogStore()
+const categoryStore = useCategoryStore()
+const tagStore = useTagStore()
 
 // 从路由参数获取博客 ID
 const blogId = computed(() => route.params.id)
@@ -30,15 +34,60 @@ const isSaving = ref(false)
 const form = reactive({
   title: '',
   content: '',
+  categoryId: null,
+  tags: [],
 })
+
+const tagInput = ref('')
+const showTagSuggestions = ref(false)
+
+function addTag(tag) {
+  if (!form.tags.find(t => t.id === tag.id || t.name === tag.name)) {
+    form.tags.push({ id: tag.id, name: tag.name })
+  }
+  tagInput.value = ''
+  showTagSuggestions.value = false
+}
+
+function removeTag(tag) {
+  form.tags = form.tags.filter(t => t.id !== tag.id && t.name !== tag.name)
+}
+
+function onTagInput() {
+  if (tagInput.value.trim()) {
+    tagStore.search(tagInput.value.trim())
+    showTagSuggestions.value = true
+  } else {
+    showTagSuggestions.value = false
+  }
+}
+
+function selectTagSuggestion(tag) {
+  addTag(tag)
+}
+
+function onTagKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    const name = tagInput.value.trim()
+    if (name) {
+      if (tagStore.suggestions.length > 0 && tagInput.value) {
+        selectTagSuggestion(tagStore.suggestions[0])
+      } else {
+        addTag({ id: null, name })
+      }
+    }
+  }
+}
 
 // 计算字数
 const titleLength = computed(() => form.title?.length || 0)
 const contentLength = computed(() => form.content?.length || 0)
 const contentRemaining = computed(() => 10000 - contentLength.value)
 
-// 组件挂载时加载博客数据
+// 组件挂载时加载博客数据和分类
 onMounted(async () => {
+  categoryStore.fetchCategories()
   if (isEditMode.value) {
     isLoading.value = true
     try {
@@ -46,6 +95,8 @@ onMounted(async () => {
       if (blog) {
         form.title = blog.title || ''
         form.content = blog.content || ''
+        form.categoryId = blog.categoryId || null
+        form.tags = blog.tags || []
       }
     } catch (err) {
       PxMessage.error(err.message || '加载博客失败')
@@ -81,6 +132,8 @@ async function handleSubmit() {
     const payload = {
       title: form.title.trim(),
       content: form.content.trim(),
+      categoryId: form.categoryId,
+      tags: form.tags.map(t => ({ id: t.id, name: t.name })),
     }
 
     if (isEditMode.value) {
@@ -127,10 +180,14 @@ function handleReset() {
     if (blogStore.currentBlog) {
       form.title = blogStore.currentBlog.title || ''
       form.content = blogStore.currentBlog.content || ''
+      form.categoryId = blogStore.currentBlog.categoryId || null
+      form.tags = blogStore.currentBlog.tags || []
     }
   } else {
     form.title = ''
     form.content = ''
+    form.categoryId = null
+    form.tags = []
   }
 }
 </script>
@@ -175,6 +232,57 @@ function handleReset() {
             clearable
             maxlength="100"
           />
+        </label>
+
+        <!-- 分类 -->
+        <label class="form-field">
+          <div class="field-header">
+            <span class="field-label">分类</span>
+          </div>
+          <select v-model="form.categoryId" class="category-select">
+            <option :value="null">无分类</option>
+            <option
+              v-for="cat in categoryStore.flatCategories"
+              :key="cat.id"
+              :value="cat.id"
+            >
+              {{ cat.name }}
+            </option>
+          </select>
+        </label>
+
+        <!-- 标签 -->
+        <label class="form-field">
+          <div class="field-header">
+            <span class="field-label">标签</span>
+          </div>
+          <div class="tag-input-wrapper">
+            <div class="tag-list">
+              <span v-for="tag in form.tags" :key="tag.name" class="tag-chip">
+                {{ tag.name }}
+                <button class="tag-remove" @click="removeTag(tag)">&times;</button>
+              </span>
+              <input
+                v-model="tagInput"
+                class="tag-input-inline"
+                placeholder="输入标签后回车"
+                @input="onTagInput"
+                @keydown="onTagKeydown"
+                @focus="onTagInput"
+                @blur="setTimeout(() => showTagSuggestions = false, 200)"
+              />
+            </div>
+            <div v-if="showTagSuggestions && tagStore.suggestions.length" class="tag-suggestions">
+              <div
+                v-for="tag in tagStore.suggestions"
+                :key="tag.id"
+                class="tag-suggestion-item"
+                @mousedown.prevent="selectTagSuggestion(tag)"
+              >
+                {{ tag.name }}
+              </div>
+            </div>
+          </div>
         </label>
 
         <!-- 内容字段 -->
@@ -278,6 +386,98 @@ function handleReset() {
   bottom: 12px;
   right: 12px;
   z-index: 10;
+}
+
+.category-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid rgba(56, 91, 102, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #385b66;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.18s;
+}
+
+.category-select:focus {
+  border-color: #7c4dff;
+}
+
+.tag-input-wrapper {
+  position: relative;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid rgba(56, 91, 102, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  min-height: 42px;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(124, 77, 255, 0.12);
+  color: #5d3ef0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tag-remove {
+  border: none;
+  background: none;
+  color: #5d3ef0;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  line-height: 1;
+}
+
+.tag-input-inline {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  padding: 4px;
+  font-size: 13px;
+  background: transparent;
+  color: #385b66;
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-top: 4px;
+  border: 1px solid rgba(56, 91, 102, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tag-suggestion-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #385b66;
+  transition: background 0.12s;
+}
+
+.tag-suggestion-item:hover {
+  background: rgba(124, 77, 255, 0.08);
 }
 
 .content-field :deep(.px-textarea) {

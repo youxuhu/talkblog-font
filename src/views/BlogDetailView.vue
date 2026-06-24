@@ -188,6 +188,10 @@ function handlePageChange(page) {
               <px-text size="12" type="secondary">更新于 {{ formatDate(blog.updatedAt) }}</px-text>
             </template>
           </div>
+          <div v-if="blog.categoryName" class="blog-category-tags">
+            <span class="category-badge">{{ blog.categoryName }}</span>
+            <span v-for="tag in blog.tags || []" :key="tag.id" class="tag-badge">{{ tag.name }}</span>
+          </div>
         </div>
       </template>
 
@@ -318,6 +322,34 @@ function handlePageChange(page) {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.blog-category-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(124, 77, 255, 0.1);
+  color: #5d3ef0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(56, 91, 102, 0.08);
+  color: #385b66;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .blog-content {

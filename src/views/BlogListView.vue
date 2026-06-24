@@ -7,28 +7,38 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
+import { useCategoryStore } from '@/stores/category'
 import { PxMessage } from '@mmt817/pixel-ui'
 
 const router = useRouter()
 const blogStore = useBlogStore()
+const categoryStore = useCategoryStore()
 
 // 搜索关键词
 const searchKeyword = ref('')
+const selectedCategoryId = ref(null)
 
 // 加载更多博客
 function loadMore() {
   const nextPage = blogStore.currentPage + 1
-  blogStore.fetchBlogs({ page: nextPage, keyword: searchKeyword.value })
+  blogStore.fetchBlogs({ page: nextPage, keyword: searchKeyword.value, categoryId: selectedCategoryId.value })
 }
 
-// 组件挂载时获取博客列表
+// 组件挂载时获取博客列表和分类
 onMounted(() => {
+  categoryStore.fetchCategories()
   blogStore.fetchBlogs({ page: 1, keyword: '' })
 })
 
 // 搜索博客
 function handleSearch() {
-  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value })
+  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, categoryId: selectedCategoryId.value })
+}
+
+// 按分类筛选
+function selectCategory(categoryId) {
+  selectedCategoryId.value = selectedCategoryId.value === categoryId ? null : categoryId
+  blogStore.fetchBlogs({ page: 1, keyword: searchKeyword.value, categoryId: selectedCategoryId.value })
 }
 
 // 跳转到博客详情页
@@ -108,6 +118,26 @@ function formatDate(dateStr) {
       </px-input>
     </section>
 
+    <!-- 分类筛选 -->
+    <section v-if="categoryStore.categories.length" class="category-filter">
+      <button
+        class="category-tag"
+        :class="{ active: selectedCategoryId === null }"
+        @click="selectCategory(null)"
+      >
+        全部
+      </button>
+      <button
+        v-for="cat in categoryStore.flatCategories"
+        :key="cat.id"
+        class="category-tag"
+        :class="{ active: selectedCategoryId === cat.id }"
+        @click="selectCategory(cat.id)"
+      >
+        {{ cat.name }}
+      </button>
+    </section>
+
     <!-- 博客卡片网格 -->
     <section class="blog-grid" v-loading="blogStore.loading">
       <!-- 有博客时显示卡片列表 -->
@@ -137,6 +167,7 @@ function formatDate(dateStr) {
               <div class="blog-meta">
                 <px-icon icon="user-solid" size="14" color="#6b7f87" />
                 <px-text size="12" type="secondary">{{ blog.authorName || '匿名' }}</px-text>
+                <span v-if="blog.categoryName" class="card-category-badge">{{ blog.categoryName }}</span>
               </div>
               <!-- 操作按钮 -->
               <div class="blog-actions" @click.stop>
@@ -265,6 +296,45 @@ function formatDate(dateStr) {
 .blog-actions {
   display: flex;
   gap: 8px;
+}
+
+.card-category-badge {
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: rgba(124, 77, 255, 0.08);
+  color: #5d3ef0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.category-tag {
+  padding: 6px 14px;
+  border: 2px solid rgba(56, 91, 102, 0.15);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #385b66;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.category-tag:hover {
+  border-color: rgba(124, 77, 255, 0.3);
+  background: rgba(124, 77, 255, 0.06);
+}
+
+.category-tag.active {
+  border-color: #7c4dff;
+  background: rgba(124, 77, 255, 0.12);
+  color: #5d3ef0;
 }
 
 .empty-state {

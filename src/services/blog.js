@@ -68,10 +68,10 @@ function getToken() {
 /**
  * 获取博客列表
  */
-export function getBlogList({ page = 1, size = 10, keyword = '' } = {}) {
+export function getBlogList({ page = 1, size = 10, keyword = '', categoryId } = {}) {
   return requestJson('/api/blogs', {
     method: 'GET',
-    query: { page, size, keyword },
+    query: { page, size, keyword, categoryId },
   })
 }
 

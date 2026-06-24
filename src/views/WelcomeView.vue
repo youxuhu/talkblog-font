@@ -134,7 +134,7 @@ function handleLogout() {
     </div>
 
     <div class="welcome-actions">
-      <px-button type="primary" @click="goHome">返回首页</px-button>
+      <px-button plain @click="goHome">浏览门户</px-button>
       <px-button plain @click="handleLogout">退出登录</px-button>
     </div>
   </main>

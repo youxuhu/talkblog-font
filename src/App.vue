@@ -31,6 +31,7 @@ watch(
       <div class="nav-left">
         <router-link to="/blogs" class="nav-link">博客</router-link>
         <router-link to="/series" class="nav-link">专栏</router-link>
+        <router-link to="/chat" class="nav-link">聊天室</router-link>
       </div>
       <div class="nav-right">
         <NotificationBell />
@@ -47,7 +48,7 @@ watch(
 <style>
 .app-shell {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: #ebe6e0;
 }
 
 .top-nav {
@@ -56,8 +57,8 @@ watch(
   align-items: center;
   height: 52px;
   padding: 0 24px;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid rgba(56, 91, 102, 0.12);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -74,19 +75,19 @@ watch(
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: #6b7f87;
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
 }
 
 .nav-link:hover {
-  background: var(--tag-bg);
-  color: var(--color-accent);
+  background: rgba(56, 91, 102, 0.08);
+  color: #5d3ef0;
 }
 
 .nav-link.router-link-active {
-  color: var(--color-accent);
-  background: var(--color-accent-bg);
+  color: #5d3ef0;
+  background: rgba(93, 62, 240, 0.08);
 }
 
 .nav-right {

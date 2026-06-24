@@ -189,7 +189,7 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.meta.requiresAuth && !isAuthenticated()) {
     ElMessage.warning('请先登录')
-    return '/'
+    return '/login'
   }
 
   if (to.meta.requiresAdmin && !isAdminUser()) {
@@ -197,7 +197,7 @@ router.beforeEach((to) => {
     return '/welcome'
   }
 
-  if ((to.path === '/' || to.path === '/login') && isAuthenticated()) {
+  if (to.path === '/login' && isAuthenticated()) {
     return '/welcome'
   }
 

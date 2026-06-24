@@ -12,7 +12,7 @@ const features = [
 function go(path) {
   if (path === '/chat' || path === '/bookmarks' || path === '/notifications' || path === '/profile') {
     if (!isAuthenticated()) {
-      router.push('/')
+      router.push('/login')
       return
     }
   }
@@ -44,10 +44,7 @@ function go(path) {
     </section>
 
     <section class="features-section">
-      <px-text tag="h2" size="20" class="section-title">平台功能</px-text>
-      <px-text size="13" type="secondary" class="section-desc">
-        探索 TalkBlog 提供的丰富功能
-      </px-text>
+      <px-text tag="h2" size="22" class="section-title">平台功能</px-text>
       <div class="features-grid">
         <px-card
           v-for="f in features"
@@ -56,11 +53,11 @@ function go(path) {
           class="feature-card"
           @click="go(f.route)"
         >
-          <template #prepend>
-            <px-icon :icon="f.icon" size="28" :color="f.color" />
-          </template>
-          <px-text tag="h3" size="15">{{ f.title }}</px-text>
-          <px-text size="12" type="secondary">{{ f.desc }}</px-text>
+          <div class="feature-body">
+            <px-icon :icon="f.icon" size="40" :color="f.color" />
+            <px-text tag="h3" size="18">{{ f.title }}</px-text>
+            <px-text size="14" type="secondary">{{ f.desc }}</px-text>
+          </div>
         </px-card>
       </div>
     </section>
@@ -129,6 +126,7 @@ function go(path) {
 .hero-title {
   color: #213547;
   letter-spacing: 0.04em;
+  font-size: clamp(2rem, 6vw, 3.2rem);
 }
 
 .hero-subtitle {
@@ -168,7 +166,15 @@ function go(path) {
 
 .feature-card {
   cursor: pointer;
-  padding: 32px 24px;
+  padding: 40px 24px;
+}
+
+.feature-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
 }
 
 .quick-actions {

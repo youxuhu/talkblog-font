@@ -18,6 +18,7 @@ import BlogEditorView from '../views/BlogEditorView.vue'
 import AdminCommentsView from '../views/AdminCommentsView.vue'
 import AdminCommentStatsView from '../views/AdminCommentStatsView.vue'
 import AdminChatView from '../views/AdminChatView.vue'
+import ChatroomAdminView from '../views/ChatroomAdminView.vue'
 
 // 创建路由实例
 const router = createRouter({
@@ -28,8 +29,10 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/welcome', name: 'welcome', component: WelcomeView, meta: { requiresAuth: true } },
     { path: '/chat', name: 'chat', component: ChatView, meta: { requiresAuth: true } },
+    { path: '/chat/:id', name: 'chat-room', component: ChatView, meta: { requiresAuth: true } },
     { path: '/admin/users', name: 'admin-users', component: AdminUsersView, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/chat', name: 'admin-chat', component: AdminChatView, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin/chatrooms', name: 'admin-chatrooms', component: ChatroomAdminView, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/blogs', name: 'blog-list', component: BlogListView },
     { path: '/blog/:id', name: 'blog-detail', component: BlogDetailView },
     { path: '/blog/editor/:id?', name: 'blog-editor', component: BlogEditorView, meta: { requiresAuth: true } },

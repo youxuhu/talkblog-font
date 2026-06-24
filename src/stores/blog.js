@@ -30,11 +30,7 @@ export const useBlogStore = defineStore('blog', () => {
     try {
       const result = await blogApi.getBlogList({ page, size, keyword: kw, categoryId, tagId, sortBy })
       const list = result.data?.list || []
-      if (page === 1) {
-        blogs.value = list
-      } else {
-        blogs.value.push(...list)
-      }
+      blogs.value = list
       total.value = result.data?.total || 0
       currentPage.value = page
       pageSize.value = size

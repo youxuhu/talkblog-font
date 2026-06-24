@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBlogStore } from '@/stores/blog'
 import { useCategoryStore } from '@/stores/category'
@@ -21,6 +21,25 @@ const sortOptions = [
   { label: '最多点赞', value: 'likes' },
 ]
 
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(blogStore.total / blogStore.pageSize))
+)
+
+const pageNumbers = computed(() => {
+  const current = blogStore.currentPage
+  const total = totalPages.value
+  const maxShow = 5
+  let start = Math.max(1, current - Math.floor(maxShow / 2))
+  let end = start + maxShow - 1
+  if (end > total) {
+    end = total
+    start = Math.max(1, end - maxShow + 1)
+  }
+  const pages = []
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+})
+
 function doLoad(page) {
   blogStore.fetchBlogs({
     page,
@@ -28,10 +47,6 @@ function doLoad(page) {
     categoryId: selectedCategoryId.value,
     sortBy: sortBy.value,
   })
-}
-
-function loadMore() {
-  doLoad(blogStore.currentPage + 1)
 }
 
 onMounted(() => {
@@ -320,16 +335,33 @@ async function handleCardFavorite(event, blog) {
             <px-text size="12" type="secondary">
               共 {{ blogStore.total }} 篇
             </px-text>
-            <px-button
-              v-if="blogStore.hasMore"
-              plain
-              size="small"
-              :loading="blogStore.loading"
-              @click="loadMore"
-            >
-              加载更多
-            </px-button>
-            <px-text v-else size="12" type="secondary">已显示全部</px-text>
+            <div class="pagination-buttons">
+              <px-button
+                plain
+                size="small"
+                :disabled="blogStore.currentPage <= 1"
+                @click="doLoad(blogStore.currentPage - 1)"
+              >
+                上一页
+              </px-button>
+              <button
+                v-for="p in pageNumbers"
+                :key="p"
+                class="page-btn"
+                :class="{ active: p === blogStore.currentPage }"
+                @click="doLoad(p)"
+              >
+                {{ p }}
+              </button>
+              <px-button
+                plain
+                size="small"
+                :disabled="blogStore.currentPage * blogStore.pageSize >= blogStore.total"
+                @click="doLoad(blogStore.currentPage + 1)"
+              >
+                下一页
+              </px-button>
+            </div>
           </div>
         </section>
       </div>
@@ -797,6 +829,40 @@ async function handleCardFavorite(event, blog) {
   align-items: center;
   gap: 16px;
   padding: 24px 0;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #2c3e50;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  transition: all 0.15s;
+}
+
+.page-btn:hover {
+  background: #f0f2f5;
+  border-color: #b0b8c1;
+}
+
+.page-btn.active {
+  background: #3b82c4;
+  border-color: #3b82c4;
+  color: #fff;
 }
 
 @media (max-width: 640px) {

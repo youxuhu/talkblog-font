@@ -7,10 +7,6 @@ const router = useRouter()
 const features = [
   { icon: 'file-text-solid', color: '#5d3ef0', title: '博客', desc: '阅读、创作与分享', route: '/blogs' },
   { icon: 'chat-solid', color: '#7c4dff', title: '聊天室', desc: '实时群组交流', route: '/chat' },
-  { icon: 'star-solid', color: '#d69e2e', title: '收藏', desc: '收藏精彩内容', route: '/bookmarks' },
-  { icon: 'bell-solid', color: '#e53e3e', title: '通知', desc: '实时消息提醒', route: '/notifications' },
-  { icon: 'folder-solid', color: '#2f855a', title: '专栏', desc: '系列文章合集', route: '/series' },
-  { icon: 'user-solid', color: '#385b66', title: '个人', desc: '账号与偏好设置', route: '/profile' },
 ]
 
 function go(path) {
@@ -164,14 +160,15 @@ function go(path) {
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  max-width: 900px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 700px;
   width: 100%;
 }
 
 .feature-card {
   cursor: pointer;
+  padding: 32px 24px;
 }
 
 .quick-actions {
